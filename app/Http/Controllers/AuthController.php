@@ -25,7 +25,7 @@ class AuthController extends Controller
             'aktywny' => 1,
         ])) {
             $request->session()->regenerate();
-            return redirect()->intended(route('produkty.index'));
+            return redirect()->intended('/panel');
         }
 
         return back()->withErrors(['email' => 'Błędny e-mail/hasło lub konto nieaktywne.'])
