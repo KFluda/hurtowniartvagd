@@ -10,7 +10,10 @@
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg bg-white border-bottom shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold text-primary" href="{{ route('home') }}">Hurtownia RTV/AGD</a>
+        <a class="navbar-brand fw-bold text-primary" href="{{ route('panel') }}">
+            Hurtownia RTV/AGD
+        </a>
+
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
             <span class="navbar-toggler-icon"></span>
         </button>

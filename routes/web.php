@@ -5,6 +5,28 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProduktController;
 use App\Http\Controllers\MagazynController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FakturaController;
+use App\Http\Controllers\DostawcaController;
+use App\Http\Controllers\KlientController;
+Route::get('/klienci', [KlientController::class, 'index'])->name('klienci.index');
+Route::get('/klienci',              [KlientController::class, 'index'])->name('klienci.index');
+Route::get('/klienci/nowy',         [KlientController::class, 'create'])->name('klienci.create');
+Route::post('/klienci',             [KlientController::class, 'store'])->name('klienci.store');
+Route::get('/klienci/{id}/edytuj',  [KlientController::class, 'edit'])->name('klienci.edit');
+Route::put('/klienci/{id}',         [KlientController::class, 'update'])->name('klienci.update');
+Route::delete('/klienci/{id}',      [KlientController::class, 'destroy'])->name('klienci.destroy');
+
+
+Route::get('/dostawcy',                 [DostawcaController::class, 'index'])->name('dostawcy.index');
+Route::get('/dostawcy/nowy',            [DostawcaController::class, 'create'])->name('dostawcy.create');
+Route::post('/dostawcy',                [DostawcaController::class, 'store'])->name('dostawcy.store');
+Route::get('/dostawcy/{id}/edytuj',     [DostawcaController::class, 'edit'])->name('dostawcy.edit');
+Route::put('/dostawcy/{id}',            [DostawcaController::class, 'update'])->name('dostawcy.update');
+Route::delete('/dostawcy/{id}',         [DostawcaController::class, 'destroy'])->name('dostawcy.destroy');
+
+Route::get('/faktury/nowa', [FakturaController::class, 'create'])->name('faktury.create');
+Route::post('/faktury',      [FakturaController::class, 'store'])->name('faktury.store');
+Route::get('/faktury/{id}',  [FakturaController::class, 'show'])->name('faktury.show');
 
 Route::middleware('auth')->group(function () {
     Route::get('/panel', [DashboardController::class, 'index'])->name('panel');
@@ -24,8 +46,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/magazyn/stany', [MagazynController::class, 'stany'])->name('magazyn.stany');
     Route::view('/faktury', 'placeholder')->name('faktury.index');
     Route::view('/zakupy', 'placeholder')->name('zakupy.index');
-    Route::view('/klienci', 'placeholder')->name('klienci.index');
-    Route::view('/dostawcy', 'placeholder')->name('dostawcy.index');
+
+    Route::get('/dostawcy', [DostawcaController::class, 'index'])->name('dostawcy.index');
     Route::view('/ruchy', 'placeholder')->name('ruchy.index');
     Route::view('/raporty', 'placeholder')->name('raporty.index');
     Route::view('/ustawienia', 'placeholder')->name('ustawienia.index');
