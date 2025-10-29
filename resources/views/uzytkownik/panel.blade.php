@@ -19,9 +19,12 @@
         <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('panel') }}">Panel</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('produkty.index') }}">Produkty</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('faktury.index') }}">Faktury sprzedaży</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('zakupy.index') }}">Zamówienia zakupu</a></li>
+
+        {{-- ZMIENIONE NAZWY I LINKI --}}
+        <li class="nav-item"><a class="nav-link" href="{{ route('zamowienia.create') }}">Stwórz zamówienie</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ route('zamowienia.index') }}">Zamówienia</a></li>
+
         <li class="nav-item"><a class="nav-link" href="{{ route('magazyn.stany') }}">Magazyn</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('ruchy.index') }}">Ruchy magazynowe</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('klienci.index') }}">Klienci</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('dostawcy.index') }}">Dostawcy</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('raporty.index') }}">Raporty</a></li>
@@ -70,7 +73,7 @@
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Katalog produktów</h5>
-                    <p class="text-muted">Wyszukuj po nazwie, SKU, EAN. Przeglądaj statusy i ceny.</p>
+                    <p class="text-muted">Wyszukuj po nazwie, SKU, EAN. Przeglądaj statusy i stany.</p>
                     <a href="{{ route('produkty.index') }}" class="btn btn-outline-primary">Przejdź</a>
                 </div>
             </div>
@@ -86,15 +89,14 @@
             </div>
         </div>
 
+        {{-- ZMIANA: "Zamówienia zakupu" -> "Stwórz zamówienie" --}}
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">Zamówienia zakupu</h5>
-                    <p class="text-muted">Zamówienia do dostawców, statusy i terminy (do zrobienia).</p>
-                    <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-primary">Przejdź</a>
-
-
-                </div>mowienia
+                    <h5 class="card-title">Stwórz zamówienie</h5>
+                    <p class="text-muted">Wybierz klienta i dodaj pozycje z katalogu produktów.</p>
+                    <a href="{{ route('zamowienia.create') }}" class="btn btn-outline-success">Przejdź</a>
+                </div>
             </div>
         </div>
 
@@ -108,12 +110,13 @@
             </div>
         </div>
 
+        {{-- ZMIANA: "Ruchy magazynowe" -> "Zamówienia" (lista) --}}
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">Ruchy magazynowe</h5>
-                    <p class="text-muted">Przyjęcia, wydania, korekty (do zrobienia).</p>
-                    <a href="{{ route('ruchy.index') }}" class="btn btn-outline-primary">Przejdź</a>
+                    <h5 class="card-title">Zamówienia</h5>
+                    <p class="text-muted">Lista wszystkich zamówień z wyszukiwarką.</p>
+                    <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-primary">Przejdź</a>
                 </div>
             </div>
         </div>

@@ -49,11 +49,17 @@ Route::middleware('auth')->group(function () {
     Route::put('/dostawcy/{id}',            [DostawcaController::class, 'update'])->name('dostawcy.update');
     Route::delete('/dostawcy/{id}',         [DostawcaController::class, 'destroy'])->name('dostawcy.destroy');
 
-    /* Zamówienia – NAJWAZNIEJSZE */
-    Route::get('/zamowienia',         [ZamowienieController::class, 'create'])->name('zamowienia.index');
-    Route::get('/zamowienia/nowe',    [ZamowienieController::class, 'create'])->name('zamowienia.create');
-    Route::post('/zamowienia',        [ZamowienieController::class, 'store'])->name('zamowienia.store');
-    Route::get('/zamowienia/{id}',    [ZamowienieController::class, 'show'])->name('zamowienia.show');
+    /* Zamówienia – NAJWAŻNIEJSZE */
+    Route::get('/zamowienia',       [ZamowienieController::class, 'index'])->name('zamowienia.index');
+    Route::get('/zamowienia/nowe',  [ZamowienieController::class, 'create'])->name('zamowienia.create');
+    Route::post('/zamowienia',      [ZamowienieController::class, 'store'])->name('zamowienia.store');
+    Route::get('/zamowienia/{id}',  [ZamowienieController::class, 'show'])->name('zamowienia.show');
+
+    /* Stary link "Zakupy" -> teraz "Stwórz zamówienie" */
+    Route::get('/zakupy', fn () => redirect()->route('zamowienia.create'))->name('zakupy.index');
+
+    /* Stary link "Ruchy" -> teraz "Zamówienia (lista)" */
+    Route::get('/ruchy', fn () => redirect()->route('zamowienia.index'))->name('ruchy.index');
 
     /* Magazyn + placeholdery sekcji, które jeszcze budujesz */
     Route::get('/magazyn/stany', [MagazynController::class, 'stany'])->name('magazyn.stany');
@@ -61,9 +67,7 @@ Route::middleware('auth')->group(function () {
     // Zostawiamy placeholdery, ale NIE dla /zamowienia
     Route::view('/faktury',    'placeholder')->name('faktury.index');
     // Zakupy -> przekierowanie na Zamówienia (tymczasowo, bez placeholdera)
-    Route::redirect('/zakupy', '/zamowienia')->name('zakupy.index');
 
-    Route::view('/ruchy',      'placeholder')->name('ruchy.index');
     Route::view('/raporty',    'placeholder')->name('raporty.index');
     Route::view('/ustawienia', 'placeholder')->name('ustawienia.index');
 

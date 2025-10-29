@@ -18,11 +18,16 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
             <span class="navbar-toggler-icon"></span>
         </button>
+
         <div id="menu" class="collapse navbar-collapse">
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a href="{{ route('produkty.index') }}" class="nav-link">Produkty</a></li>
                 <li class="nav-item"><a href="{{ route('magazyn.stany') }}" class="nav-link">Stany</a></li>
+
+                {{-- NOWE NAZWY --}}
+                <li class="nav-item"><a href="{{ route('zamowienia.create') }}" class="nav-link">Stwórz zamówienie</a></li>
                 <li class="nav-item"><a href="{{ route('zamowienia.index') }}" class="nav-link">Zamówienia</a></li>
+
                 <li class="nav-item"><a href="{{ route('pages.o-nas') }}" class="nav-link">O nas</a></li>
                 <li class="nav-item"><a href="{{ route('pages.kontakt') }}" class="nav-link">Kontakt</a></li>
             </ul>
