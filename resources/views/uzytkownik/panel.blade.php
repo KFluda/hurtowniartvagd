@@ -91,8 +91,10 @@
                 <div class="card-body">
                     <h5 class="card-title">Zamówienia zakupu</h5>
                     <p class="text-muted">Zamówienia do dostawców, statusy i terminy (do zrobienia).</p>
-                    <a href="{{ route('zakupy.index') }}" class="btn btn-outline-primary">Przejdź</a>
-                </div>
+                    <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-primary">Przejdź</a>
+
+
+                </div>mowienia
             </div>
         </div>
 

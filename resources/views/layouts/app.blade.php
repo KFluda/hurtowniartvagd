@@ -5,6 +5,7 @@
     <title>@yield('title','Hurtownia RTV/AGD')</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ asset('css/style.css') }}" rel="stylesheet">
 </head>
 <body class="bg-light">
@@ -21,6 +22,7 @@
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a href="{{ route('produkty.index') }}" class="nav-link">Produkty</a></li>
                 <li class="nav-item"><a href="{{ route('magazyn.stany') }}" class="nav-link">Stany</a></li>
+                <li class="nav-item"><a href="{{ route('zamowienia.index') }}" class="nav-link">Zamówienia</a></li>
                 <li class="nav-item"><a href="{{ route('pages.o-nas') }}" class="nav-link">O nas</a></li>
                 <li class="nav-item"><a href="{{ route('pages.kontakt') }}" class="nav-link">Kontakt</a></li>
             </ul>
