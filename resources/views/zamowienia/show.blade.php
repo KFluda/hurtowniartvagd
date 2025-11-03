@@ -4,11 +4,49 @@
 @section('content')
 <div class="container py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h5 mb-0">Zamówienie #{{ $zam->id_zamowienia }}</h1>
-        <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-secondary btn-sm">Powrót</a>
+        <h1 class="h5 mb-0">
+            Zamówienie #{{ $zam->id_zamowienia }}
+            @php
+            $badge = match($zam->status) {
+            'anulowane'    => 'danger',
+            'zrealizowane' => 'success',
+            'w_realizacji' => 'warning',
+            'przyjęte'     => 'primary',
+            default        => 'secondary', // robocze, etc.
+            };
+            @endphp
+            <span class="badge bg-{{ $badge }}">{{ $zam->status }}</span>
+        </h1>
+
+        <div class="d-flex gap-2">
+            {{-- Zmiana statusu (jeśli nie anulowane) --}}
+            @if($zam->status !== 'anulowane')
+            <form method="post" action="{{ route('zamowienia.status', $zam->id_zamowienia) }}" class="d-flex gap-2">
+                @csrf
+                @method('PATCH')
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="robocze"      @selected($zam->status==='robocze')>robocze</option>
+                    <option value="przyjęte"     @selected($zam->status==='przyjęte')>przyjęte</option>
+                    <option value="w_realizacji" @selected($zam->status==='w_realizacji')>w realizacji</option>
+                    <option value="zrealizowane" @selected($zam->status==='zrealizowane')>zrealizowane</option>
+                </select>
+            </form>
+
+            {{-- Anulowanie z przywróceniem stanów --}}
+            <form method="post" action="{{ route('zamowienia.cancel', $zam->id_zamowienia) }}"
+                  onsubmit="return confirm('Na pewno anulować to zamówienie i przywrócić stany magazynowe?');">
+                @csrf
+                @method('DELETE')
+                <button class="btn btn-sm btn-outline-danger">Anuluj</button>
+            </form>
+            @endif
+
+            <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-secondary btn-sm">Powrót</a>
+        </div>
     </div>
 
-    @if(session('status')) <div class="alert alert-success">{{ session('status') }}</div> @endif
+    @if(session('status'))  <div class="alert alert-success">{{ session('status') }}</div> @endif
+    @if(session('error'))   <div class="alert alert-danger">{{ session('error') }}</div> @endif
 
     <div class="row g-3">
         <div class="col-md-6">
@@ -23,8 +61,8 @@
         <div class="col-md-6">
             <div class="bg-white border rounded-3 p-3 h-100">
                 <h6 class="mb-3">Dane dokumentu</h6>
-                <div>Data wystawienia: {{ $zam->data_wystawienia }}</div>
-                <div>Status: <span class="badge bg-secondary">{{ $zam->status }}</span></div>
+                <div>Numer zamówienia: <span class="text-monospace">{{ $zam->numer_zamowienia ?? '—' }}</span></div>
+                <div>Data wystawienia: {{ \Carbon\Carbon::parse($zam->data_wystawienia)->format('Y-m-d') }}</div>
                 <div class="mt-2">Uwagi: {{ $zam->uwagi ?? '—' }}</div>
             </div>
         </div>

@@ -9,6 +9,31 @@ use App\Http\Controllers\FakturaController;
 use App\Http\Controllers\DostawcaController;
 use App\Http\Controllers\KlientController;
 use App\Http\Controllers\ZamowienieController;
+use App\Http\Controllers\ReportsController;
+
+Route::middleware('auth')->group(function () {
+
+    // Widok raportów (z filtrami i płótnami)
+    Route::get('/raporty', [ReportsController::class, 'index'])->name('raporty.index');
+
+    // Dane do wykresów (AJAX)
+    Route::get('/raporty/data/obrot',        [ReportsController::class, 'obrotData'])->name('raporty.data.obrot');
+    Route::get('/raporty/data/zamowienia',   [ReportsController::class, 'zamowieniaData'])->name('raporty.data.zamowienia');
+    Route::get('/raporty/data/top-produkty', [ReportsController::class, 'topProduktyData'])->name('raporty.data.topProdukty');
+});
+// Zmiana statusu (bez anulowania)
+Route::patch('/zamowienia/{id}/status', [ZamowienieController::class, 'updateStatus'])
+    ->name('zamowienia.status');
+
+// Anulowanie zamówienia (przywraca stany)
+Route::delete('/zamowienia/{id}', [ZamowienieController::class, 'cancel'])
+    ->name('zamowienia.cancel');
+
+// Lista zamówień do zafakturowania
+Route::get('/faktury', [FakturaController::class, 'index'])->name('faktury.index');
+
+// Generowanie PDF z konkretnego zamówienia
+Route::get('/faktury/{id}/pdf', [FakturaController::class, 'pdf'])->name('faktury.pdf');
 
 /* Public */
 Route::get('/', function () {
@@ -64,11 +89,6 @@ Route::middleware('auth')->group(function () {
     /* Magazyn + placeholdery sekcji, które jeszcze budujesz */
     Route::get('/magazyn/stany', [MagazynController::class, 'stany'])->name('magazyn.stany');
 
-    // Zostawiamy placeholdery, ale NIE dla /zamowienia
-    Route::view('/faktury',    'placeholder')->name('faktury.index');
-    // Zakupy -> przekierowanie na Zamówienia (tymczasowo, bez placeholdera)
-
-    Route::view('/raporty',    'placeholder')->name('raporty.index');
     Route::view('/ustawienia', 'placeholder')->name('ustawienia.index');
 
     /* Strony statyczne */

@@ -4,108 +4,66 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class FakturaController extends Controller
 {
-    public function __construct() { $this->middleware('auth'); }
-
-    public function create()
+    public function __construct()
     {
-        $kontrahenci = DB::table('kontrahenci')->orderBy('nazwa')->select('nip','nazwa')->get();
-        $pozycjeCount = 5;
-        return view('faktury.create', compact('pozycjeCount','kontrahenci'));
+        $this->middleware('auth');
     }
 
-    public function store(Request $request)
+    /** Lista zamówień (źródło faktur) */
+    public function index(Request $request)
     {
-        $data = $request->validate([
-            'numer' => ['required','string','max:50'],
-            'data_wystawienia' => ['required','date'],
-            'selected_nip' => ['nullable','string','max:20'],
-            'nip' => ['nullable','string','max:20'],
-            'nazwa' => ['nullable','string','max:255'],
-            'ulica' => ['nullable','string','max:255'],
-            'kod_pocztowy' => ['nullable','string','max:12'],
-            'miasto' => ['nullable','string','max:120'],
-            'kraj' => ['nullable','string','max:80'],
-            'nazwa_produktu.*' => ['nullable','string','max:255'],
-            'ilosc.*' => ['nullable','numeric','min:0'],
-            'cena_netto.*' => ['nullable','numeric','min:0'],
-            'stawka_vat.*' => ['nullable','numeric','min:0'],
-        ]);
+        $q = trim((string)$request->get('q',''));
 
-        $nip = $data['selected_nip'] ? $data['selected_nip'] : $data['nip'];
-        if (!$nip) return back()->withErrors(['nip'=>'Wybierz kontrahenta lub wpisz NIP.'])->withInput();
+        $zamowienia = DB::table('zamowienia as z')
+            ->leftJoin('klienci as k','k.id_klienta','=','z.id_klienta')
+            ->select('z.id_zamowienia','z.numer_zamowienia','z.data_wystawienia',
+                'z.suma_netto','z.suma_vat','z.suma_brutto','k.nazwa as klient')
+            ->when($q, function ($qr) use ($q) {
+                $qr->where(function($w) use ($q){
+                    $w->where('z.numer_zamowienia','like',"%$q%")
+                        ->orWhere('k.nazwa','like',"%$q%");
+                });
+            })
+            ->orderByDesc('z.id_zamowienia')
+            ->paginate(20)
+            ->withQueryString();
 
-        $kontr = DB::table('kontrahenci')->where('nip',$nip)->first();
-        if (!$kontr) {
-            if (empty($data['nazwa'])) return back()->withErrors(['nazwa'=>'Podaj nazwę nabywcy.'])->withInput();
-            $idKontr = DB::table('kontrahenci')->insertGetId([
-                'nip'=>$nip,'nazwa'=>$data['nazwa'],'ulica'=>$data['ulica'],
-                'kod_pocztowy'=>$data['kod_pocztowy'],'miasto'=>$data['miasto'],
-                'kraj'=>$data['kraj'] ? $data['kraj'] : 'Polska',
-            ]);
-        } else {
-            $idKontr = $kontr->id_kontrahenta;
-        }
-
-        $sumaN=0; $sumaV=0; $sumaB=0;
-        DB::beginTransaction();
-        try {
-            $idF = DB::table('faktury_sprzedazy')->insertGetId([
-                'numer'=>$data['numer'],'data_wystawienia'=>$data['data_wystawienia'],
-                'id_kontrahenta'=>$idKontr,'suma_netto'=>0,'suma_vat'=>0,'suma_brutto'=>0,
-            ]);
-
-            $nazwy=(array)$request->input('nazwa_produktu',[]);
-            $ilosci=(array)$request->input('ilosc',[]);
-            $ceny=(array)$request->input('cena_netto',[]);
-            $stawki=(array)$request->input('stawka_vat',[]);
-            $lp=1;
-
-            for($i=0;$i<count($nazwy);$i++){
-                $n=trim((string)($nazwy[$i]??'')); $q=(float)($ilosci[$i]??0);
-                $c=(float)($ceny[$i]??0); $v=(float)($stawki[$i]??23.00);
-                if($n===''||$q<=0) continue;
-
-                $wn=round($q*$c,2); $kv=round($wn*($v/100),2); $wb=round($wn+$kv,2);
-                $sumaN+=$wn; $sumaV+=$kv; $sumaB+=$wb;
-
-                DB::table('faktury_pozycje')->insert([
-                    'id_faktury'=>$idF,'lp'=>$lp++,'nazwa_produktu'=>$n,
-                    'ilosc'=>$q,'cena_netto'=>$c,'stawka_vat'=>$v,
-                    'wart_netto'=>$wn,'kwota_vat'=>$kv,'wart_brutto'=>$wb
-                ]);
-            }
-            if($lp===1){ DB::rollBack(); return back()->withErrors(['msg'=>'Dodaj co najmniej jedną pozycję.'])->withInput(); }
-
-            DB::table('faktury_sprzedazy')->where('id_faktury',$idF)->update([
-                'suma_netto'=>$sumaN,'suma_vat'=>$sumaV,'suma_brutto'=>$sumaB
-            ]);
-
-            DB::commit();
-            return redirect()->route('faktury.show',$idF)->with('status','Faktura zapisana.');
-        } catch(\Exception $e){
-            DB::rollBack();
-            return back()->withErrors(['msg'=>'Błąd: '.$e->getMessage()])->withInput();
-        }
+        return view('faktury.index', compact('zamowienia','q'));
     }
 
-    public function show($id)
+    /** Generowanie jednej faktury VAT w PDF na podstawie zamówienia */
+    public function pdf($id)
     {
-        $f = DB::table('faktury_sprzedazy as fs')
-            ->join('kontrahenci as k','k.id_kontrahenta','=','fs.id_kontrahenta')
-            ->select('fs.*','k.nip','k.nazwa','k.ulica','k.kod_pocztowy','k.miasto','k.kraj')
-            ->where('fs.id_faktury',$id)->first();
-        if(!$f) abort(404);
+        $zam = DB::table('zamowienia as z')
+            ->leftJoin('klienci as k','k.id_klienta','=','z.id_klienta')
+            ->select('z.*','k.nazwa as klient','k.nip','k.miasto','k.ulica','k.kod_pocztowy','k.email','k.telefon')
+            ->where('z.id_zamowienia',$id)
+            ->first();
 
-        $poz = DB::table('faktury_pozycje')->where('id_faktury',$id)->orderBy('lp')->get();
+        if (!$zam) abort(404);
 
-        $sprzedawca = [
-            'nazwa'=>'Hurtownia RTV/AGD Sp. z o.o.','nip'=>'123-45-67-890',
-            'ulica'=>'ul. Magazynowa 1','kod'=>'00-000','miasto'=>'Miasto','kraj'=>'Polska'
-        ];
+        $pozycje = DB::table('zamowienia_pozycje')
+            ->where('id_zamowienia',$id)
+            ->orderBy('id_pozycji')
+            ->get();
 
-        return view('faktury.show',['faktura'=>$f,'pozycje'=>$poz,'sprzedawca'=>$sprzedawca]);
+        // Numer faktury – prosty schemat na bazie roku i ID zamówienia:
+        $nrFaktury = 'FV/'.date('Y').'/'.str_pad($zam->id_zamowienia, 5, '0', STR_PAD_LEFT);
+
+        $sprzedawca = config('firma');
+
+        $pdf = Pdf::loadView('faktury.vat', [
+            'nr'       => $nrFaktury,
+            'zam'      => $zam,
+            'pozycje'  => $pozycje,
+            'sprzedawca' => $sprzedawca,
+        ])->setPaper('a4');
+
+        $filename = 'Faktura_'.$nrFaktury.'.pdf';
+        return $pdf->download($filename);  // albo ->stream($filename);
     }
 }
