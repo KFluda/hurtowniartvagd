@@ -19,8 +19,7 @@
         </h1>
 
         <div class="d-flex gap-2">
-            {{-- Zmiana statusu (jeśli nie anulowane) --}}
-            @if($zam->status !== 'anulowane')
+            {{-- Zmiana statusu – ZAWSZE dostępna --}}
             <form method="post" action="{{ route('zamowienia.status', $zam->id_zamowienia) }}" class="d-flex gap-2">
                 @csrf
                 @method('PATCH')
@@ -29,10 +28,12 @@
                     <option value="przyjęte"     @selected($zam->status==='przyjęte')>przyjęte</option>
                     <option value="w_realizacji" @selected($zam->status==='w_realizacji')>w realizacji</option>
                     <option value="zrealizowane" @selected($zam->status==='zrealizowane')>zrealizowane</option>
+                    <option value="anulowane"    @selected($zam->status==='anulowane')>anulowane</option>
                 </select>
             </form>
 
-            {{-- Anulowanie z przywróceniem stanów --}}
+            {{-- „Anuluj” tylko jeśli jeszcze nie jest anulowane (skrótowa akcja) --}}
+            @if($zam->status !== 'anulowane')
             <form method="post" action="{{ route('zamowienia.cancel', $zam->id_zamowienia) }}"
                   onsubmit="return confirm('Na pewno anulować to zamówienie i przywrócić stany magazynowe?');">
                 @csrf
@@ -43,6 +44,7 @@
 
             <a href="{{ route('zamowienia.index') }}" class="btn btn-outline-secondary btn-sm">Powrót</a>
         </div>
+
     </div>
 
     @if(session('status'))  <div class="alert alert-success">{{ session('status') }}</div> @endif

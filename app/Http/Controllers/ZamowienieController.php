@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
+
 class ZamowienieController extends Controller
 {
     public function __construct()
@@ -187,8 +188,6 @@ class ZamowienieController extends Controller
     }
     public function updateStatus(Request $request, $id)
     {
-
-
         $allowed = ['robocze', 'przyjęte', 'w_realizacji', 'zrealizowane', 'anulowane'];
 
         $request->validate([
@@ -198,25 +197,22 @@ class ZamowienieController extends Controller
         DB::beginTransaction();
 
         try {
-            // Blokujemy nagłówek na czas operacji
             $zam = DB::table('zamowienia')->where('id_zamowienia', $id)->lockForUpdate()->first();
             if (!$zam) abort(404);
 
             $oldStatus = $zam->status;
             $newStatus = $request->status;
 
-            // Nic do zrobienia
             if ($oldStatus === $newStatus) {
                 DB::rollBack();
                 return back()->with('status', 'Status bez zmian.');
             }
 
-            // Pobierz pozycje raz (przyda się w obu kierunkach)
             $pozycje = DB::table('zamowienia_pozycje')
                 ->where('id_zamowienia', $id)
                 ->get();
 
-            // 1) Z aktywnego -> ANULOWANE: oddaj stany do magazynu (jak dotąd)
+            // 1) → anulowane: zwróć stany
             if ($newStatus === 'anulowane' && $oldStatus !== 'anulowane') {
                 foreach ($pozycje as $poz) {
                     DB::table('produkty')
@@ -225,11 +221,10 @@ class ZamowienieController extends Controller
                 }
             }
 
-            // 2) Z ANULOWANE -> aktywny status: spróbuj ponownie zdjąć stany
+            // 2) anulowane → inny status: spróbuj ponownie zdjąć stany
             if ($oldStatus === 'anulowane' && $newStatus !== 'anulowane') {
                 $braki = [];
 
-                // Najpierw sprawdzanie dostępności z blokadą
                 foreach ($pozycje as $poz) {
                     $prod = DB::table('produkty')
                         ->where('id_produktu', $poz->id_produktu)
@@ -251,7 +246,6 @@ class ZamowienieController extends Controller
                     return back()->with('error', "Nie można przywrócić zamówienia:\n- " . implode("\n- ", $braki));
                 }
 
-                // Skoro wszystko dostępne — zdejmujemy stany
                 foreach ($pozycje as $poz) {
                     DB::table('produkty')
                         ->where('id_produktu', $poz->id_produktu)
@@ -261,19 +255,58 @@ class ZamowienieController extends Controller
                 }
             }
 
-            // 3) Zapis nowego statusu
             DB::table('zamowienia')
                 ->where('id_zamowienia', $id)
                 ->update(['status' => $newStatus]);
 
             DB::commit();
             return back()->with('status', 'Status zamówienia zaktualizowany.');
-
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'Błąd zmiany statusu: ' . $e->getMessage());
         }
     }
+    public function cancel($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            // Blokujemy nagłówek na czas operacji
+            $zam = DB::table('zamowienia')
+                ->where('id_zamowienia', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$zam) abort(404);
+
+            // Jeśli już anulowane – nie rób nic (idempotencja)
+            if ($zam->status !== 'anulowane') {
+                // Przywróć stany z pozycji
+                $pozycje = DB::table('zamowienia_pozycje')
+                    ->where('id_zamowienia', $id)
+                    ->get();
+
+                foreach ($pozycje as $poz) {
+                    DB::table('produkty')
+                        ->where('id_produktu', $poz->id_produktu)
+                        ->increment('ilosc', (float)$poz->ilosc);
+                }
+
+                // Ustaw status na anulowane
+                DB::table('zamowienia')
+                    ->where('id_zamowienia', $id)
+                    ->update(['status' => 'anulowane']);
+            }
+
+            DB::commit();
+            return back()->with('status', 'Zamówienie anulowane. Stany magazynowe przywrócone.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Błąd anulowania: '.$e->getMessage());
+        }
+    }
+
+
 
     /* ===================== PODGLĄD ===================== */
     public function show($id)

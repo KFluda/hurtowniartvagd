@@ -94,4 +94,8 @@ Route::middleware('auth')->group(function () {
     /* Strony statyczne */
     Route::view('/o-nas',   'pages.o-nas')->name('pages.o-nas');
     Route::view('/kontakt', 'pages.kontakt')->name('pages.kontakt');
+
+    Route::patch('/zamowienia/{id}/status', [ZamowienieController::class, 'updateStatus'])->name('zamowienia.status');
+    Route::delete('/zamowienia/{id}',       [ZamowienieController::class, 'cancel'])->name('zamowienia.cancel');
+
 });

@@ -35,6 +35,7 @@ class ReportsController extends Controller
             ->selectRaw("DATE_FORMAT(data_wystawienia, '{$groupFormat}') as label")
             ->selectRaw('SUM(suma_brutto) as value')
             ->whereBetween('data_wystawienia', [$from, $to])
+            ->where('status', '!=', 'anulowane')
             ->groupBy('label')
             ->orderBy('label')
             ->get();
