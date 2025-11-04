@@ -10,6 +10,24 @@ use App\Http\Controllers\DostawcaController;
 use App\Http\Controllers\KlientController;
 use App\Http\Controllers\ZamowienieController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\UsersController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get   ('/uzytkownicy',             [UsersController::class,'index'])->name('uzytkownicy.index');
+    Route::get   ('/uzytkownicy/nowy',        [UsersController::class,'create'])->name('uzytkownicy.create');
+    Route::post  ('/uzytkownicy',             [UsersController::class,'store'])->name('uzytkownicy.store');
+    Route::get   ('/uzytkownicy/{id}/edytuj', [UsersController::class,'edit'])->name('uzytkownicy.edit');
+    Route::put   ('/uzytkownicy/{id}',        [UsersController::class,'update'])->name('uzytkownicy.update');
+    Route::delete('/uzytkownicy/{id}',        [UsersController::class,'destroy'])->name('uzytkownicy.destroy');
+});
+
+
+
+Route::middleware(['auth', 'admin.only'])->group(function () {
+    Route::get('/uzytkownicy', [UsersController::class, 'index'])
+        ->name('uzytkownicy.index');
+    // (tu później create/store/edit/update/destroy)
+});
 
 Route::middleware('auth')->group(function () {
 
@@ -98,4 +116,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/zamowienia/{id}/status', [ZamowienieController::class, 'updateStatus'])->name('zamowienia.status');
     Route::delete('/zamowienia/{id}',       [ZamowienieController::class, 'cancel'])->name('zamowienia.cancel');
 
+    Route::patch('/uzytkownicy/{id}/toggle', [UsersController::class, 'toggleActive'])->name('uzytkownicy.toggle');
+    Route::post('/uzytkownicy/{id}/reset-pass', [UsersController::class, 'resetPassword'])->name('uzytkownicy.resetPass');
 });

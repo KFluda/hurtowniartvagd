@@ -16,19 +16,49 @@
 
     {{-- Zakładki (nawigacja) --}}
     <ul class="nav nav-tabs mb-3">
-        <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('panel') }}">Panel</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('produkty.index') }}">Produkty</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('faktury.index') }}">Faktury sprzedaży</a></li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('panel') ? 'active' : '' }}" href="{{ route('panel') }}">Panel</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('produkty.*') ? 'active' : '' }}" href="{{ route('produkty.index') }}">Produkty</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('faktury.*') ? 'active' : '' }}" href="{{ route('faktury.index') }}">Faktury sprzedaży</a>
+        </li>
 
-        {{-- ZMIENIONE NAZWY I LINKI --}}
-        <li class="nav-item"><a class="nav-link" href="{{ route('zamowienia.create') }}">Stwórz zamówienie</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('zamowienia.index') }}">Zamówienia</a></li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('zamowienia.create') ? 'active' : '' }}" href="{{ route('zamowienia.create') }}">Stwórz zamówienie</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('zamowienia.index') ? 'active' : '' }}" href="{{ route('zamowienia.index') }}">Zamówienia</a>
+        </li>
 
-        <li class="nav-item"><a class="nav-link" href="{{ route('magazyn.stany') }}">Magazyn</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('klienci.index') }}">Klienci</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('dostawcy.index') }}">Dostawcy</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('raporty.index') }}">Raporty</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('ustawienia.index') }}">Ustawienia</a></li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('magazyn.*') ? 'active' : '' }}" href="{{ route('magazyn.stany') }}">Magazyn</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('klienci.*') ? 'active' : '' }}" href="{{ route('klienci.index') }}">Klienci</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('dostawcy.*') ? 'active' : '' }}" href="{{ route('dostawcy.index') }}">Dostawcy</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('raporty.*') ? 'active' : '' }}" href="{{ route('raporty.index') }}">Raporty</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ request()->routeIs('ustawienia.*') ? 'active' : '' }}" href="{{ route('ustawienia.index') }}">Ustawienia</a>
+        </li>
+
+        @auth
+        @if (strtoupper(auth()->user()->rola ?? '') === 'ADMIN')
+        <li class="nav-item ms-2">
+            <a class="nav-link {{ request()->routeIs('uzytkownicy.*') ? 'active' : '' }}"
+               href="{{ route('uzytkownicy.index') }}">
+                Użytkownicy
+            </a>
+        </li>
+        @endif
+        @endauth
     </ul>
 
     {{-- Szybkie statystyki --}}
