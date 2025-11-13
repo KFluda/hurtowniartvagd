@@ -135,8 +135,9 @@ class UsersController extends Controller
     {
         return [
             'ADMIN'     => 'ADMIN',
-            'MAGAZYN'   => 'MAGAZYN',
-            'HANDLOWIEC'=> 'HANDLOWIEC',
+            'KIEROWNIK' => 'KIEROWNIK',
+            'PRACOWNIK' => 'PRACOWNIK',
         ];
     }
+
 }

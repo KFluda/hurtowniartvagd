@@ -32,9 +32,11 @@
             $roleBadge = match(strtoupper($u->rola)) {
             'ADMIN'      => 'danger',
             'HANDLOWIEC' => 'primary',
-            default      => 'secondary',
+            'KIEROWNIK'  => 'secondary',
+            default      => 'light',
             };
             @endphp
+
             <tr>
                 <td class="text-monospace">{{ $u->email }}</td>
                 <td>{{ $u->imie_nazwisko }}</td>

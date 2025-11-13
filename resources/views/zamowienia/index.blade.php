@@ -6,10 +6,17 @@
 
     <div class="d-flex align-items-center justify-content-between mb-3">
         <h1 class="h4 mb-0">Zamówienia</h1>
+
+        @auth
+        @php $role = strtoupper(auth()->user()->rola ?? ''); @endphp
+        @if(in_array($role, ['ADMIN','KIEROWNIK']))
         <a href="{{ route('zamowienia.create') }}" class="btn btn-success">
             <i class="bi bi-plus-circle"></i> Nowe zamówienie
         </a>
+        @endif
+        @endauth
     </div>
+
 
     @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>

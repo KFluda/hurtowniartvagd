@@ -10,31 +10,61 @@
 </head>
 <body class="bg-light">
 
-{{-- GÓRNY PASEK z logo + wylogowaniem --}}
+{{-- GÓRNY PASEK --}}
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
     <div class="container">
-        <a class="navbar-brand fw-bold text-primary" href="{{ route('panel') }}">
+
+        {{-- Logo: dla gościa -> strona główna, dla zalogowanego -> panel --}}
+        <a class="navbar-brand fw-bold text-primary"
+           href="{{ auth()->check() ? route('panel') : route('home') }}">
             Hurtownia RTV/AGD
         </a>
 
-        <div class="ms-auto d-flex align-items-center">
+        <div class="ms-auto d-flex align-items-center gap-2">
+
             @auth
-            <span class="me-3 small text-muted">
+            {{-- Dla zalogowanych: Panel + Sklep + info + Wyloguj --}}
+            <a href="{{ route('panel') }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-speedometer2"></i> Panel
+            </a>
+
+            <a href="{{ route('sklep') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-shop"></i> Sklep
+            </a>
+
+            <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-info-circle"></i> O nas
+            </a>
+
+            <span class="small text-muted ms-2">
                     Zalogowany jako:
                     <strong>{{ Auth::user()->imie_nazwisko ?? Auth::user()->email }}</strong>
                 </span>
-            <form action="{{ route('logout') }}" method="POST" class="d-inline">
+
+            <form action="{{ route('logout') }}" method="POST" class="d-inline ms-2">
                 @csrf
                 <button type="submit" class="btn btn-outline-danger btn-sm">
                     <i class="bi bi-box-arrow-right"></i> Wyloguj
                 </button>
             </form>
+            @else
+            {{-- Dla gości: Sklep + Zaloguj --}}
+            <a href="{{ route('sklep') }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-shop"></i> Sklep
+            </a>
+
+            <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-info-circle"></i> O nas
+            </a>
+
+            <a href="{{ route('login') }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-box-arrow-in-right"></i> Zaloguj
+            </a>
             @endauth
+
         </div>
     </div>
 </nav>
-
-
 
 <main class="py-4">
     @yield('content')

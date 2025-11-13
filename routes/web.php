@@ -11,58 +11,21 @@ use App\Http\Controllers\KlientController;
 use App\Http\Controllers\ZamowienieController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\FrontendController;
+// Publiczne strony
+Route::view('/o-nas', 'pages.o-nas')->name('pages.o-nas');
+Route::view('/kontakt', 'pages.kontakt')->name('pages.kontakt');
 
-Route::middleware(['auth'])->group(function () {
-    Route::get   ('/uzytkownicy',             [UsersController::class,'index'])->name('uzytkownicy.index');
-    Route::get   ('/uzytkownicy/nowy',        [UsersController::class,'create'])->name('uzytkownicy.create');
-    Route::post  ('/uzytkownicy',             [UsersController::class,'store'])->name('uzytkownicy.store');
-    Route::get   ('/uzytkownicy/{id}/edytuj', [UsersController::class,'edit'])->name('uzytkownicy.edit');
-    Route::put   ('/uzytkownicy/{id}',        [UsersController::class,'update'])->name('uzytkownicy.update');
-    Route::delete('/uzytkownicy/{id}',        [UsersController::class,'destroy'])->name('uzytkownicy.destroy');
-});
-
-
-
-Route::middleware(['auth', 'admin.only'])->group(function () {
-    Route::get('/uzytkownicy', [UsersController::class, 'index'])
-        ->name('uzytkownicy.index');
-    // (tu później create/store/edit/update/destroy)
-});
-
-Route::middleware('auth')->group(function () {
-
-    // Widok raportów (z filtrami i płótnami)
-    Route::get('/raporty', [ReportsController::class, 'index'])->name('raporty.index');
-
-    // Dane do wykresów (AJAX)
-    Route::get('/raporty/data/obrot',        [ReportsController::class, 'obrotData'])->name('raporty.data.obrot');
-    Route::get('/raporty/data/zamowienia',   [ReportsController::class, 'zamowieniaData'])->name('raporty.data.zamowienia');
-    Route::get('/raporty/data/top-produkty', [ReportsController::class, 'topProduktyData'])->name('raporty.data.topProdukty');
-});
-// Zmiana statusu (bez anulowania)
-Route::patch('/zamowienia/{id}/status', [ZamowienieController::class, 'updateStatus'])
-    ->name('zamowienia.status');
-
-// Anulowanie zamówienia (przywraca stany)
-Route::delete('/zamowienia/{id}', [ZamowienieController::class, 'cancel'])
-    ->name('zamowienia.cancel');
-
-// Lista zamówień do zafakturowania
-Route::get('/faktury', [FakturaController::class, 'index'])->name('faktury.index');
-
-// Generowanie PDF z konkretnego zamówienia
-Route::get('/faktury/{id}/pdf', [FakturaController::class, 'pdf'])->name('faktury.pdf');
-
-/* Public */
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+Route::get('/', [FrontendController::class, 'home'])->name('home');
+Route::get('/produkt/{id}', [FrontendController::class, 'show'])->name('produkt.show');
+Route::post('/zamowienie', [FrontendController::class, 'submitOrder'])->name('frontend.order');
+Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
 
 Route::get('/login',  [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-/* Auth-only */
+/* ===================== Panel + wspólne dla wszystkich zalogowanych ===================== */
 Route::middleware('auth')->group(function () {
 
     /* Panel */
@@ -92,30 +55,54 @@ Route::middleware('auth')->group(function () {
     Route::put('/dostawcy/{id}',            [DostawcaController::class, 'update'])->name('dostawcy.update');
     Route::delete('/dostawcy/{id}',         [DostawcaController::class, 'destroy'])->name('dostawcy.destroy');
 
-    /* Zamówienia – NAJWAŻNIEJSZE */
-    Route::get('/zamowienia',       [ZamowienieController::class, 'index'])->name('zamowienia.index');
-    Route::get('/zamowienia/nowe',  [ZamowienieController::class, 'create'])->name('zamowienia.create');
-    Route::post('/zamowienia',      [ZamowienieController::class, 'store'])->name('zamowienia.store');
-    Route::get('/zamowienia/{id}',  [ZamowienieController::class, 'show'])->name('zamowienia.show');
-
-    /* Stary link "Zakupy" -> teraz "Stwórz zamówienie" */
-    Route::get('/zakupy', fn () => redirect()->route('zamowienia.create'))->name('zakupy.index');
-
-    /* Stary link "Ruchy" -> teraz "Zamówienia (lista)" */
-    Route::get('/ruchy', fn () => redirect()->route('zamowienia.index'))->name('ruchy.index');
-
-    /* Magazyn + placeholdery sekcji, które jeszcze budujesz */
+    /* Magazyn */
     Route::get('/magazyn/stany', [MagazynController::class, 'stany'])->name('magazyn.stany');
 
+    /* Strony statyczne / placeholdery */
     Route::view('/ustawienia', 'placeholder')->name('ustawienia.index');
 
-    /* Strony statyczne */
-    Route::view('/o-nas',   'pages.o-nas')->name('pages.o-nas');
-    Route::view('/kontakt', 'pages.kontakt')->name('pages.kontakt');
+    /* Zamówienia – dostępne DLA KAŻDEGO zalogowanego (również PRACOWNIK) */
+    Route::get('/zamowienia',      [ZamowienieController::class, 'index'])->name('zamowienia.index');
+    Route::get('/zamowienia/{id}', [ZamowienieController::class, 'show'])->name('zamowienia.show');
 
+    // Zmiana statusu — np. PRACOWNIK też może
     Route::patch('/zamowienia/{id}/status', [ZamowienieController::class, 'updateStatus'])->name('zamowienia.status');
-    Route::delete('/zamowienia/{id}',       [ZamowienieController::class, 'cancel'])->name('zamowienia.cancel');
+});
 
-    Route::patch('/uzytkownicy/{id}/toggle', [UsersController::class, 'toggleActive'])->name('uzytkownicy.toggle');
-    Route::post('/uzytkownicy/{id}/reset-pass', [UsersController::class, 'resetPassword'])->name('uzytkownicy.resetPass');
+/* ===================== ADMIN + KIEROWNIK ===================== */
+/* Raporty, Faktury, tworzenie/anulowanie zamówień */
+Route::middleware(['auth', 'role:ADMIN,KIEROWNIK'])->group(function () {
+
+    /* Raporty + API do wykresów */
+    Route::get('/raporty', [ReportsController::class, 'index'])->name('raporty.index');
+    Route::get('/raporty/data/obrot',        [ReportsController::class, 'obrotData'])->name('raporty.data.obrot');
+    Route::get('/raporty/data/zamowienia',   [ReportsController::class, 'zamowieniaData'])->name('raporty.data.zamowienia');
+    Route::get('/raporty/data/top-produkty', [ReportsController::class, 'topProduktyData'])->name('raporty.data.topProdukty');
+
+    /* Faktury sprzedaży */
+    Route::get('/faktury',        [FakturaController::class, 'index'])->name('faktury.index');
+    Route::get('/faktury/{id}/pdf',[FakturaController::class, 'pdf'])->name('faktury.pdf');
+
+    /* Tworzenie / zapis / anulowanie zamówień */
+    Route::get('/zamowienia/nowe',  [ZamowienieController::class, 'create'])->name('zamowienia.create');
+    Route::post('/zamowienia',      [ZamowienieController::class, 'store'])->name('zamowienia.store');
+    Route::delete('/zamowienia/{id}', [ZamowienieController::class, 'cancel'])->name('zamowienia.cancel');
+
+    /* Stare przekierowania */
+    Route::get('/zakupy', fn () => redirect()->route('zamowienia.create'))->name('zakupy.index');
+    Route::get('/ruchy',  fn () => redirect()->route('zamowienia.index'))->name('ruchy.index');
+});
+
+/* ===================== ADMIN – zarządzanie użytkownikami ===================== */
+Route::middleware(['auth', 'role:ADMIN'])->group(function () {
+    Route::get   ('/uzytkownicy',             [UsersController::class,'index'])->name('uzytkownicy.index');
+    Route::get   ('/uzytkownicy/nowy',        [UsersController::class,'create'])->name('uzytkownicy.create');
+    Route::post  ('/uzytkownicy',             [UsersController::class,'store'])->name('uzytkownicy.store');
+    Route::get   ('/uzytkownicy/{id}/edytuj', [UsersController::class,'edit'])->name('uzytkownicy.edit');
+    Route::put   ('/uzytkownicy/{id}',        [UsersController::class,'update'])->name('uzytkownicy.update');
+    Route::delete('/uzytkownicy/{id}',        [UsersController::class,'destroy'])->name('uzytkownicy.destroy');
+
+    // extra akcje admina
+    Route::patch('/uzytkownicy/{id}/toggle',       [UsersController::class, 'toggleActive'])->name('uzytkownicy.toggle');
+    Route::post ('/uzytkownicy/{id}/reset-pass',   [UsersController::class, 'resetPassword'])->name('uzytkownicy.resetPass');
 });

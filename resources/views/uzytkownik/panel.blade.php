@@ -2,6 +2,13 @@
 @section('title','Panel użytkownika')
 
 @section('content')
+@php
+$rola = strtoupper(auth()->user()->rola ?? '');
+$isAdmin      = $rola === 'ADMIN';
+$isKierownik  = $rola === 'KIEROWNIK';
+$isManagerOrAdmin = $isAdmin || $isKierownik; // ADMIN + KIEROWNIK
+@endphp
+
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -19,16 +26,26 @@
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('panel') ? 'active' : '' }}" href="{{ route('panel') }}">Panel</a>
         </li>
+
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('produkty.*') ? 'active' : '' }}" href="{{ route('produkty.index') }}">Produkty</a>
         </li>
+
+        {{-- Faktury sprzedaży: tylko ADMIN + KIEROWNIK --}}
+        @if($isManagerOrAdmin)
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('faktury.*') ? 'active' : '' }}" href="{{ route('faktury.index') }}">Faktury sprzedaży</a>
         </li>
+        @endif
 
+        {{-- Stwórz zamówienie: tylko ADMIN + KIEROWNIK --}}
+        @if($isManagerOrAdmin)
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('zamowienia.create') ? 'active' : '' }}" href="{{ route('zamowienia.create') }}">Stwórz zamówienie</a>
         </li>
+        @endif
+
+        {{-- Zamówienia (lista): widzą wszyscy zalogowani (również PRACOWNIK) --}}
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('zamowienia.index') ? 'active' : '' }}" href="{{ route('zamowienia.index') }}">Zamówienia</a>
         </li>
@@ -36,21 +53,28 @@
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('magazyn.*') ? 'active' : '' }}" href="{{ route('magazyn.stany') }}">Magazyn</a>
         </li>
+
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('klienci.*') ? 'active' : '' }}" href="{{ route('klienci.index') }}">Klienci</a>
         </li>
+
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('dostawcy.*') ? 'active' : '' }}" href="{{ route('dostawcy.index') }}">Dostawcy</a>
         </li>
+
+        {{-- Raporty: tylko ADMIN + KIEROWNIK --}}
+        @if($isManagerOrAdmin)
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('raporty.*') ? 'active' : '' }}" href="{{ route('raporty.index') }}">Raporty</a>
         </li>
+        @endif
+
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('ustawienia.*') ? 'active' : '' }}" href="{{ route('ustawienia.index') }}">Ustawienia</a>
         </li>
 
-        @auth
-        @if (strtoupper(auth()->user()->rola ?? '') === 'ADMIN')
+        {{-- Użytkownicy: tylko ADMIN --}}
+        @if($isAdmin)
         <li class="nav-item ms-2">
             <a class="nav-link {{ request()->routeIs('uzytkownicy.*') ? 'active' : '' }}"
                href="{{ route('uzytkownicy.index') }}">
@@ -58,7 +82,6 @@
             </a>
         </li>
         @endif
-        @endauth
     </ul>
 
     {{-- Szybkie statystyki --}}
@@ -109,17 +132,19 @@
             </div>
         </div>
 
+        @if($isManagerOrAdmin)
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Faktury sprzedaży</h5>
-                    <p class="text-muted">Lista i wyszukiwarka dokumentów FS, pobieranie PDF (do zrobienia).</p>
+                    <p class="text-muted">Lista i wyszukiwarka dokumentów FS, pobieranie PDF.</p>
                     <a href="{{ route('faktury.index') }}" class="btn btn-outline-primary">Przejdź</a>
                 </div>
             </div>
         </div>
+        @endif
 
-        {{-- ZMIANA: "Zamówienia zakupu" -> "Stwórz zamówienie" --}}
+        @if($isManagerOrAdmin)
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
@@ -129,6 +154,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
@@ -140,7 +166,7 @@
             </div>
         </div>
 
-        {{-- ZMIANA: "Ruchy magazynowe" -> "Zamówienia" (lista) --}}
+        {{-- Zamówienia (lista) zawsze widoczne --}}
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
@@ -151,15 +177,17 @@
             </div>
         </div>
 
+        @if($isManagerOrAdmin)
         <div class="col-md-4">
             <div class="card h-100 border-0 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Raporty</h5>
-                    <p class="text-muted">Obroty, stany, rotacja, ABC (do zrobienia).</p>
+                    <p class="text-muted">Obroty, stany, rotacja, TOP produkty itd.</p>
                     <a href="{{ route('raporty.index') }}" class="btn btn-outline-primary">Przejdź</a>
                 </div>
             </div>
         </div>
+        @endif
     </div>
 </div>
 @endsection
