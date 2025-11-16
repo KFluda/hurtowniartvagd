@@ -3,46 +3,44 @@
 
 @section('content')
 <div class="container py-4">
-    <div class="row">
-        <h1 class="h4 mb-3">{{ $produkt->nazwa }}</h1>
-        <p>{{ $produkt->opis ?? 'Brak szczegółowego opisu. '}}</p>
-        <div class="fs-5 text-primary fw-bold mb-4">{{ number_format($produkt->cena_brutto,2,',',' ') }} zł </div>
 
-    </div>
+    <a href="{{ route('sklep') }}" class="btn btn-link mb-3">
+        &laquo; Powrót do sklepu
+    </a>
 
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title mb-3">Zapytaj o produkt</h5>
-                <form method="post" action="{{ route(frontend.order) }}">
-                    @csrf
-                    <input type="hidden" name="produkt_id" value="{{ $produkt->id_produktu }}">
-                    <div class="mb-3">
-                        <label class="form-label">Imię i nazwisko*</label>
-                        <input name="nazwa" class="form-control" required>
+    <div class="row g-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h1 class="h4 mb-3">{{ $produkt->nazwa }}</h1>
 
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email*</label>
-                        <input name="email" type="email" class="form-control" required>
+                    <p class="text-muted">
+                        Kod SKU: <strong>{{ $produkt->kod_sku }}</strong>
+                    </p>
 
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Telefon</label>
-                        <input name="telefon" class="form-control">
+                    <p class="mb-2">
+                        Cena netto: {{ number_format((float)$produkt->cena_netto, 2, ',', ' ') }} zł
+                    </p>
+                    <p class="mb-3">
+                        Stawka VAT: {{ (float)$produkt->stawka_vat }}%
+                    </p>
+                    <h4 class="text-primary">
+                        Cena brutto: {{ number_format((float)$produkt->cena_brutto, 2, ',', ' ') }} zł
+                    </h4>
 
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Wiadomosc</label>
-                        <textarea name="wiadomosc" class="form-control" rows="3" required></textarea>
+                    <hr>
 
-                    </div>
-                    <button class="btn btn-primary" Wyślij zapytanie</button>
-
-
-                </form>
+                    <p class="text-muted mb-0">
+                        Brak szczegółowego opisu produktu w bazie.
+                    </p>
+                </div>
             </div>
         </div>
+
+        <div class="col-md-5">
+            {{-- Tu możesz później dorobić formularz "zapytaj o produkt" --}}
+        </div>
     </div>
+
 </div>
 @endsection

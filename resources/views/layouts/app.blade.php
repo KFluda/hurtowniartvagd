@@ -20,48 +20,74 @@
             Hurtownia RTV/AGD
         </a>
 
-        <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-            @auth
-            {{-- Dla zalogowanych: Panel + Sklep + info + Wyloguj --}}
-            <a href="{{ route('panel') }}" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-speedometer2"></i> Panel
-            </a>
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
 
-            <a href="{{ route('sklep') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-shop"></i> Sklep
-            </a>
+                @auth
+                {{-- Dla zalogowanych: Panel + Sklep + O nas + Kontakt + info + Wyloguj --}}
+                <a href="{{ route('panel') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-speedometer2"></i> Panel
+                </a>
 
-            <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-info-circle"></i> O nas
-            </a>
+                <a href="{{ route('sklep') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-shop"></i> Sklep
+                </a>
 
-            <span class="small text-muted ms-2">
-                    Zalogowany jako:
-                    <strong>{{ Auth::user()->imie_nazwisko ?? Auth::user()->email }}</strong>
-                </span>
+                <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-info-circle"></i> O nas
+                </a>
 
-            <form action="{{ route('logout') }}" method="POST" class="d-inline ms-2">
-                @csrf
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="bi bi-box-arrow-right"></i> Wyloguj
-                </button>
-            </form>
-            @else
-            {{-- Dla gości: Sklep + Zaloguj --}}
-            <a href="{{ route('sklep') }}" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-shop"></i> Sklep
-            </a>
+                <a href="{{ route('kontakt.form') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-envelope"></i> Kontakt
+                </a>
+                {{-- ... w sekcji @auth --}}
 
-            <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-info-circle"></i> O nas
-            </a>
 
-            <a href="{{ route('login') }}" class="btn btn-outline-success btn-sm">
-                <i class="bi bi-box-arrow-in-right"></i> Zaloguj
-            </a>
-            @endauth
+                <a href="{{ route('koszyk') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-bag"></i> Koszyk
+                </a>
 
+
+                <span class="small text-muted ms-2">
+                        Zalogowany jako:
+                        <strong>{{ Auth::user()->imie_nazwisko ?? Auth::user()->email }}</strong>
+                    </span>
+
+                <form action="{{ route('logout') }}" method="POST" class="d-inline ms-2">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-box-arrow-right"></i> Wyloguj
+                    </button>
+                </form>
+                @else
+                {{-- Dla gości: Sklep + O nas + Kontakt + Zaloguj --}}
+                <a href="{{ route('sklep') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-shop"></i> Sklep
+                </a>
+
+                <a href="{{ route('pages.o-nas') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-info-circle"></i> O nas
+                </a>
+
+                <a href="{{ route('kontakt.form') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-envelope"></i> Kontakt
+                </a>
+
+                <a href="{{ route('koszyk') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-bag"></i> Koszyk
+                </a>
+
+
+                <a href="{{ route('login') }}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-box-arrow-in-right"></i> Zaloguj
+                </a>
+                @endauth
+
+            </div>
         </div>
     </div>
 </nav>
