@@ -27,6 +27,13 @@
                     <h4 class="text-primary">
                         Cena brutto: {{ number_format((float)$produkt->cena_brutto, 2, ',', ' ') }} zł
                     </h4>
+                    <form action="{{ route('koszyk.add') }}" method="POST" class="mt-3">
+                        @csrf
+                        <input type="hidden" name="produkt_id" value="{{ $produkt->id_produktu }}">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-bag-plus"></i> Dodaj do koszyka
+                        </button>
+                    </form>
 
                     <hr>
 
@@ -38,7 +45,7 @@
         </div>
 
         <div class="col-md-5">
-            {{-- Tu możesz później dorobić formularz "zapytaj o produkt" --}}
+
         </div>
     </div>
 

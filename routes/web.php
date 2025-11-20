@@ -13,10 +13,27 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\FrontendController;
 
+Route::get('/platnosc-blik', [FrontendController::class, 'blikForm'])->name('platnosc.blik');
+Route::post('/platnosc-blik', [FrontendController::class, 'blikPay'])->name('platnosc.blik.pay');
+
 /* ===================== PUBLICZNE ===================== */
 Route::get('/koszyk', [FrontendController::class, 'cart'])->name('koszyk');
 // SKLEP (nazwa: sklep – używana w layoutach)
 Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
+Route::post('/koszyk/dodaj', [FrontendController::class, 'addToCart'])->name('koszyk.add');
+// KOSZYK
+Route::post('/koszyk/update', [FrontendController::class, 'updateCart'])->name('koszyk.update');
+Route::post('/koszyk/usun', [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
+/* ===================== PUBLICZNE ===================== */
+
+// SKLEP
+Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
+
+/* KOSZYK */
+Route::get('/koszyk', [FrontendController::class, 'cart'])->name('koszyk');
+Route::post('/koszyk/dodaj', [FrontendController::class, 'addToCart'])->name('koszyk.add');
+Route::post('/koszyk/aktualizuj', [FrontendController::class, 'updateCart'])->name('koszyk.update');
+Route::post('/koszyk/usun', [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
 
 // O nas / Kontakt
 Route::view('/o-nas', 'pages.o-nas')->name('pages.o-nas');
