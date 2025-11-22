@@ -37,6 +37,16 @@
                            value="{{ old('imie_nazwisko') }}"
                            required>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label" for="email">Adres e-mail</label>
+                    <input type="email"
+                           id="email"
+                           name="email"
+                           class="form-control"
+                           value="{{ old('email') }}"
+                           required
+                    >
+                </div>
 
                 <div class="mb-3">
                     <label class="form-label" for="ulica">Ulica i nr domu / lokalu</label>

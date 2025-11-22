@@ -13,6 +13,16 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\FrontendController;
 
+
+Route::get('/konto', [FrontendController::class, 'konto'])
+    ->middleware('auth')
+    ->name('konto');
+
+Route::get('/konto/zamowienia/{id}', [FrontendController::class, 'mojeZamowienie'])
+    ->middleware('auth')
+    ->whereNumber('id')
+    ->name('konto.zamowienie');
+
 Route::get('/platnosc-blik', [FrontendController::class, 'blikForm'])->name('platnosc.blik');
 Route::post('/platnosc-blik', [FrontendController::class, 'blikPay'])->name('platnosc.blik.pay');
 
@@ -54,14 +64,18 @@ Route::post('/zamowienie', [FrontendController::class, 'submitOrder'])
 Route::get('/login',  [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
+Route::get('/rejestracja',  [AuthController::class, 'showRegisterForm'])->name('register');
+Route::post('/rejestracja', [AuthController::class, 'register'])->name('register.post');
 
 /* ===================== WSPÓLNE DLA KAŻDEGO ZALOGOWANEGO ===================== */
 
 Route::middleware('auth')->group(function () {
 
-    /* Panel */
-    Route::get('/panel', [DashboardController::class, 'index'])->name('panel');
+    Route::get('/produkty',              [ProduktController::class, 'index'])->name('produkty.index');
+    Route::middleware(['auth', 'role:ADMIN,KIEROWNIK,PRACOWNIK'])->group(function () {
+        Route::get('/panel', [DashboardController::class, 'index'])->name('panel');
+    });
+
 
     /* Produkty */
     Route::get('/produkty',              [ProduktController::class, 'index'])->name('produkty.index');

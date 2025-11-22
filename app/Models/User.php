@@ -16,7 +16,7 @@ class User extends Authenticatable
     protected $primaryKey = 'id_uzytkownika';
     public $timestamps = false;
 
-    protected $fillable = ['email','imie_nazwisko','rola','aktywny','haslo'];
+    protected $fillable = ['email','imie_nazwisko','rola','aktywny','haslo','data_utworzenia'];
     protected $hidden = ['haslo'];
 
     public function getAuthPassword()

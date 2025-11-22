@@ -16,9 +16,12 @@
 
         {{-- Logo: dla gościa -> strona główna, dla zalogowanego -> panel --}}
         <a class="navbar-brand fw-bold text-primary"
-           href="{{ auth()->check() ? route('panel') : route('home') }}">
+           href="{{ route('home') }}">
             Hurtownia RTV/AGD
         </a>
+
+
+
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
             <span class="navbar-toggler-icon"></span>
@@ -28,10 +31,17 @@
             <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
 
                 @auth
-                {{-- Dla zalogowanych: Panel + Sklep + O nas + Kontakt + info + Wyloguj --}}
+                {{-- 🔹 Jeśli użytkownik jest KLIENTEM -> pokazujemy "Konto" --}}
+                @if(auth()->user()->rola === 'KLIENT')
+                <a href="{{ route('konto') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-person-circle"></i> Konto
+                </a>
+                @else
+                {{-- 🔹 ADMIN / KIEROWNIK / PRACOWNIK -> Panel --}}
                 <a href="{{ route('panel') }}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-speedometer2"></i> Panel
                 </a>
+                @endif
 
                 <a href="{{ route('sklep') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-shop"></i> Sklep
@@ -44,17 +54,14 @@
                 <a href="{{ route('kontakt.form') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-envelope"></i> Kontakt
                 </a>
-                {{-- ... w sekcji @auth --}}
-
 
                 <a href="{{ route('koszyk') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-bag"></i> Koszyk
                 </a>
 
-
                 <span class="small text-muted ms-2">
                         Zalogowany jako:
-                        <strong>{{ Auth::user()->imie_nazwisko ?? Auth::user()->email }}</strong>
+                        <strong>{{ auth()->user()->imie_nazwisko ?? auth()->user()->email }}</strong>
                     </span>
 
                 <form action="{{ route('logout') }}" method="POST" class="d-inline ms-2">
@@ -64,7 +71,7 @@
                     </button>
                 </form>
                 @else
-                {{-- Dla gości: Sklep + O nas + Kontakt + Zaloguj --}}
+                {{-- Dla gości: Sklep + O nas + Kontakt + Koszyk + Zaloguj --}}
                 <a href="{{ route('sklep') }}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-shop"></i> Sklep
                 </a>
@@ -80,7 +87,6 @@
                 <a href="{{ route('koszyk') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-bag"></i> Koszyk
                 </a>
-
 
                 <a href="{{ route('login') }}" class="btn btn-outline-success btn-sm">
                     <i class="bi bi-box-arrow-in-right"></i> Zaloguj

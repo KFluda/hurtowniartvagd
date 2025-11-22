@@ -41,6 +41,16 @@
 
                         <button type="submit" class="btn btn-primary w-100">Zaloguj</button>
                     </form>
+                    <div class="text-center mt-3">
+                        <a href="{{ route('register') }}" >
+                           Zarejestruj się!
+                        </a>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url('/') }}" class="btn btn-outline-secondary">
+                            <- Powrót na stronę główną
+                        </a>
+                    </div>
                 </div>
             </div>
 

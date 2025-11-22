@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Models\Zamowienie;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -138,6 +139,37 @@ class FrontendController extends Controller
             'producenci' => $producenci,
         ]);
     }
+    public function konto()
+    {
+        $user = auth()->user();
+        $email = $user->email;
+
+        // Szukamy zamówień po mailu zapisanym w "uwagi"
+        $zamowienia = Zamowienie::where('uwagi', 'like', '%(' . $email . ')%')
+            ->orderByDesc('data_utworzenia')
+            ->get();
+
+        return view('frontend.konto', [
+            'user'       => $user,
+            'zamowienia' => $zamowienia,
+        ]);
+    }
+    public function mojeZamowienie(int $id)
+    {
+        $user  = auth()->user();
+        $email = $user->email;
+
+        // Zamówienie musi "należeć" do tego maila
+        $zamowienie = Zamowienie::where('id_zamowienia', $id)
+            ->where('uwagi', 'like', '%(' . $email . ')%')
+            ->firstOrFail();
+
+        return view('frontend.konto-zamowienie', [
+            'user'       => $user,
+            'zamowienie' => $zamowienie,
+        ]);
+    }
+
 
 
 
@@ -345,32 +377,88 @@ class FrontendController extends Controller
 
     public function blikPay(Request $request)
     {
+        // 1. Walidacja formularza
         $rules = [
             'imie_nazwisko'  => ['required', 'string', 'max:255'],
+            'email'          => ['required', 'email', 'max:255'],
             'ulica'          => ['required', 'string', 'max:255'],
             'miasto'         => ['required', 'string', 'max:255'],
-            'kod_pocztowy'   => ['required', 'string', 'max:10'],
+            'kod_pocztowy'   => ['required', 'regex:/^[0-9]{2}-[0-9]{3}$/'],
             'dostawa'        => ['required', 'in:kurier,odbior'],
             'platnosc'       => ['required', 'in:blik,przelew,pobranie'],
             'distance'       => ['required', 'integer', 'min:1', 'max:500'],
         ];
 
-        // jeśli wybrał BLIK – wymagamy 6 cyfr
         if ($request->platnosc === 'blik') {
             $rules['blik'] = ['required', 'regex:/^[0-9]{6}$/'];
         }
 
         $validated = $request->validate($rules);
 
-        // poglądowe wyliczenie czasu dostawy
-        $distance = (int)$validated['distance'];
-        $dniDostawy = $this->obliczDniDostawy($distance);
+        // 2. Koszyk z sesji
+        $cart = collect(session('cart', []));
 
+        if ($cart->isEmpty()) {
+            return redirect()
+                ->route('koszyk')
+                ->with('error', 'Koszyk jest pusty. Dodaj produkty przed złożeniem zamówienia.');
+        }
+
+        $sumaBrutto = $cart->sum(function ($item) {
+            $ilosc = (int)($item['ilosc'] ?? 0);
+            $cena  = (float)($item['cena_brutto'] ?? 0);
+            return $ilosc * $cena;
+        });
+
+        // 3. Obliczenia
+        $distance      = (int)$validated['distance'];
+        $dniDostawy    = $this->obliczDniDostawy($distance);
+        [$netto, $vat] = $this->przeliczNettoVat($sumaBrutto);
+        $numer         = $this->generujNumerZamowienia();
+        $now           = now();
+
+        // 4. Id klienta – tu zależy jak masz powiązane user/klient.
+        // Jeśli kolumna id_klienta może być NULL, zostaw jak poniżej.
+        $domyslnyKlientId = 1;
+
+// jeżeli masz logowanie i user jest powiązany z klientem:
+        if (auth()->check() && isset(auth()->user()->id_klienta)) {
+            $idKlienta = auth()->user()->id_klienta;
+        } else {
+            $idKlienta = $domyslnyKlientId;
+        }
+
+        // 5. Zbudujemy opis w "uwagi", bo tabela nie ma osobnych kolumn na adres
+        $uwagi = "Odbiorca: {$validated['imie_nazwisko']} ({$validated['email']}), "
+            . "Adres: {$validated['ulica']}, {$validated['kod_pocztowy']} {$validated['miasto']}. "
+            . "Dostawa: {$validated['dostawa']}, płatność: {$validated['platnosc']}, "
+            . "odległość: {$distance} km, szacowany czas dostawy: {$dniDostawy} dni.";
+
+        // 6. Zapis zamówienia do tabeli `zamowienia`
+        $zamowienie = Zamowienie::create([
+            'numer_zamowienia' => $numer,
+            'id_klienta'       => $idKlienta,                 // jeśli kolumna ma NOT NULL, wpisz np. 0
+            'data_wystawienia' => $now->toDateString(),
+            'status'           => $this->statusStartowy($validated['platnosc']),
+            'suma_netto'       => $netto,
+            'suma_vat'         => $vat,
+            'suma_brutto'      => $sumaBrutto,
+            'uwagi'            => $uwagi,
+            'data_utworzenia'  => $now,
+        ]);
+
+        // 7. (na razie) nie zapisujemy pozycji – to można dorobić do osobnej tabeli
+        // jeśli taką masz, dopisz create() w pętli po $cart.
+
+        // 8. Czyścimy koszyk
+        session()->forget('cart');
+
+        // 9. Komunikat dla klienta
         return redirect()
             ->route('sklep')
-            ->with('success', 'Zamówienie złożone. Szacowany czas dostawy: '
-                . $dniDostawy . ' dni robocze.');
+            ->with('success', 'Zamówienie zostało złożone. Numer zamówienia: ' . $numer);
     }
+
     private function obliczDniDostawy(int $distance): int
     {
         if($distance <=50){
@@ -382,6 +470,34 @@ class FrontendController extends Controller
         return 2 + (int)ceil(($distance - 200) / 200);
 
     }
+    private function generujNumerZamowienia(): string
+    {
+        $date = now()->format('Ymd');
+
+        do {
+            $suffix = Str::upper(Str::random(5));
+            $number = "ZAM-{$date}-{$suffix}";
+        } while (Zamowienie::where('numer_zamowienia', $number)->exists());
+
+        return $number;
+    }
+    private function przeliczNettoVat(float $brutto): array
+    {
+        $netto = round($brutto / 1,23, 2);
+        $vat = round($brutto - $netto, 2);
+        return [$netto, $vat];
+
+    }
+    private function statusStartowy(string $platnosc): string
+    {
+        return match ($platnosc) {
+            'przelew'  => 'oczekuje na płatność',
+            default => 'zarejestrowane',
+        };
+    }
+
+
+
 
 
 
