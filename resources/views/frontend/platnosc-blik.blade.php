@@ -44,8 +44,7 @@
                            name="email"
                            class="form-control"
                            value="{{ old('email') }}"
-                           required
-                    >
+                           required>
                 </div>
 
                 <div class="mb-3">
@@ -161,7 +160,20 @@
                     </label>
                 </div>
 
-                {{-- Pole BLIK (widoczne tylko gdy wybrano BLIK) --}}
+                {{-- NOWOŚĆ: KARTA --}}
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="platnosc"
+                           id="platnosc_karta"
+                           value="karta"
+                           {{ $platnoscOld === 'karta' ? 'checked' : '' }}>
+                    <label class="form-check-label" for="platnosc_karta">
+                        Karta płatnicza
+                    </label>
+                </div>
+
+                {{-- Pole BLIK --}}
                 <div class="mt-3"
                      id="blik-box"
                      style="{{ $platnoscOld === 'blik' ? '' : 'display:none;' }}">
@@ -178,7 +190,7 @@
                     @enderror
                 </div>
 
-                {{-- DANE DO PRZELEWU (widoczne tylko przy przelewie) --}}
+                {{-- DANE DO PRZELEWU --}}
                 <div id="dane-przelewu"
                      class="alert alert-info mt-3"
                      style="{{ $platnoscOld === 'przelew' ? '' : 'display:none;' }}">
@@ -190,6 +202,57 @@
                     <br>
                     Zamówienie będzie realizowane po
                     <strong>wpływie środków na konto hurtowni</strong>.
+                </div>
+
+                {{-- NOWY BOX: PŁATNOŚĆ KARTĄ --}}
+                <div id="card-box"
+                     class="mt-3"
+                     style="{{ $platnoscOld === 'karta' ? '' : 'display:none;' }}">
+                    <div class="mb-3">
+                        <label for="card_number" class="form-label">Numer karty</label>
+                        <input type="text"
+                               id="card_number"
+                               name="card_number"
+                               class="form-control"
+                               maxlength="19"
+                               placeholder="1234 5678 9012 3456"
+                               value="{{ old('card_number') }}">
+                        @error('card_number')
+                        <div class="text-danger small mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label for="card_exp" class="form-label">Data ważności (MM/RR)</label>
+                            <input type="text"
+                                   id="card_exp"
+                                   name="card_exp"
+                                   class="form-control"
+                                   maxlength="5"
+                                   placeholder="05/27"
+                                   value="{{ old('card_exp') }}">
+                            @error('card_exp')
+                            <div class="text-danger small mt-2">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label for="card_cvv" class="form-label">CVV</label>
+                            <input type="text"
+                                   id="card_cvv"
+                                   name="card_cvv"
+                                   class="form-control"
+                                   maxlength="3"
+                                   placeholder="123"
+                                   value="{{ old('card_cvv') }}">
+                            @error('card_cvv')
+                            <div class="text-danger small mt-2">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Dane karty są używane tylko do zasymulowania płatności w tym projekcie.
+                    </small>
                 </div>
             </div>
         </div>
@@ -274,14 +337,16 @@
         distanceInput.addEventListener('input', updateDistance);
         updateDistance();
 
-        /* BLIK / PRZELEW */
+        /* PŁATNOŚĆ: BLIK / PRZELEW / POBRANIE / KARTA */
         const radios = document.querySelectorAll('input[name="platnosc"]');
         const danePrzelewu = document.getElementById('dane-przelewu');
         const blikBox = document.getElementById('blik-box');
+        const cardBox = document.getElementById('card-box');
 
         function updatePayment(value) {
             danePrzelewu.style.display = (value === 'przelew') ? '' : 'none';
-            blikBox.style.display = (value === 'blik') ? '' : 'none';
+            blikBox.style.display       = (value === 'blik')     ? '' : 'none';
+            cardBox.style.display       = (value === 'karta')    ? '' : 'none';
         }
 
         radios.forEach(r => {
@@ -292,6 +357,40 @@
 
         const current = document.querySelector('input[name="platnosc"]:checked');
         if (current) updatePayment(current.value);
+
+        /* MASKA NUMERU KARTY 1234 5678 9012 3456 */
+        const cardNumber = document.getElementById('card_number');
+        if (cardNumber) {
+            cardNumber.addEventListener('input', function () {
+                let v = this.value.replace(/[^0-9]/g, '').slice(0, 16);
+                let groups = [];
+                for (let i = 0; i < v.length; i += 4) {
+                    groups.push(v.substr(i, 4));
+                }
+                this.value = groups.join(' ');
+            });
+        }
+
+        /* MASKA DATY WAŻNOŚCI MM/YY */
+        const cardExp = document.getElementById('card_exp');
+        if (cardExp) {
+            cardExp.addEventListener('input', function () {
+                let v = this.value.replace(/[^0-9]/g, '').slice(0, 4);
+                if (v.length >= 3) {
+                    this.value = v.slice(0, 2) + '/' + v.slice(2);
+                } else {
+                    this.value = v;
+                }
+            });
+        }
+
+
+        const cardCvv = document.getElementById('card_cvv');
+        if (cardCvv) {
+            cardCvv.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 3);
+            });
+        }
     });
 </script>
 @endsection

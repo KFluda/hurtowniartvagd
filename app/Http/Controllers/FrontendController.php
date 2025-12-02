@@ -174,63 +174,133 @@ class FrontendController extends Controller
 
 
     /** Szczegóły produktu */
+    /** Szczegóły produktu */
     public function show($id)
     {
-        $produkt = DB::table('produkty')
+        $produkt = DB::table('produkty as p')
+            ->leftJoin('producenci as pr', 'pr.id_producenta', '=', 'p.id_producenta')
+            ->leftJoin('kategorie as k', 'k.id_kategorii', '=', 'p.id_kategorii')
             ->select(
-                'id_produktu',
-                'nazwa',
-                'kod_sku',
-                'cena_netto',
-                'stawka_vat',
-                DB::raw('ROUND(COALESCE(cena_netto,0) * (1 + COALESCE(stawka_vat,0) / 100), 2) as cena_brutto')
+                'p.*',
+                'pr.nazwa as producent',
+                'k.nazwa as kategoria',
+                DB::raw('ROUND(COALESCE(p.cena_netto,0) * (1 + COALESCE(p.stawka_vat,0) / 100), 2) as cena_brutto')
             )
-            ->where('id_produktu', $id)
+            ->where('p.id_produktu', $id)
+            ->where('p.aktywny', 1)
             ->first();
 
         if (! $produkt) {
             abort(404);
         }
 
-        return view('frontend.show', compact('produkt'));
+        // adres obrazka – z bazy, a jeśli brak to placeholder
+        // adres obrazka – z bazy, a jeśli brak to lokalny placeholder
+        $produkt->image_url = $produkt->image
+            ? asset('storage/products/'.$produkt->image)
+            : asset('images/placeholder-produkt.png');
+
+
+        return view('frontend.produkt', compact('produkt'));
     }
+
 
     /** Formularz zapytania o produkt */
     public function submitOrder(Request $request)
     {
-        $data = $request->validate([
-            'nazwa'       => 'required|string|max:255',
-            'email'       => 'required|email',
-            'telefon'     => 'nullable|string|max:50',
-            'wiadomosc'   => 'nullable|string',
-            'produkt_id'  => 'required|integer|exists:produkty,id_produktu',
-        ]);
+        // przykładowo: pobierasz koszyk z sesji
+        $cartItems = session('cart', []);
 
-        $produkt = DB::table('produkty')
-            ->select('id_produktu', 'nazwa', 'kod_sku')
-            ->where('id_produktu', $data['produkt_id'])
-            ->first();
-
-        if (! $produkt) {
-            abort(404);
+        if (empty($cartItems)) {
+            return back()->with('error', 'Koszyk jest pusty.');
         }
 
-        $body = "Zapytanie o produkt:\n"
-            . "ID: {$produkt->id_produktu}\n"
-            . "Nazwa: {$produkt->nazwa}\n"
-            . "Kod SKU: {$produkt->kod_sku}\n\n"
-            . "Od: {$data['nazwa']} ({$data['email']})\n"
-            . "Telefon: " . ($data['telefon'] ?? '-') . "\n\n"
-            . "Wiadomość:\n{$data['wiadomosc']}";
+        DB::beginTransaction();
 
-        Mail::raw($body, function ($message) {
-            $message->to('sprzedaz@hurtownia.local')
-                ->subject('Nowe zapytanie od klienta ze strony www');
-        });
+        try {
+            // 1. nagłówek zamówienia (klient z frontu)
+            $idZam = DB::table('zamowienia')->insertGetId([
+                'numer_zamowienia' => 'ZAM-' . date('Ymd') . '-' . Str::upper(Str::random(6)),
+                'id_klienta'       => auth()->id() ? /* twój id_klienta */ null : null,
+                'data_wystawienia' => now(),
+                'status'           => 'robocze',
+                'suma_netto'       => 0,
+                'suma_vat'         => 0,
+                'suma_brutto'      => 0,
+                'uwagi'            => null,
+                'data_utworzenia'  => now(),
+            ]);
 
-        return redirect()
-            ->route('home')
-            ->with('success', 'Dziękujemy! Twoje zapytanie zostało wysłane.');
+            $sumNetto = 0; $sumVat = 0; $sumBrutto = 0;
+
+            // 2. pozycje + aktualizacja magazynu
+            foreach ($cartItems as $item) {
+
+                $prod = DB::table('produkty')
+                    ->where('id_produktu', $item['id_produktu'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$prod) {
+                    throw new \Exception('Produkt nie istnieje');
+                }
+
+                $ilosc     = (float)$item['ilosc'];
+                $cenaNetto = (float)$item['cena_netto'];
+                $vat       = (float)$prod->stawka_vat;
+
+                if ($prod->ilosc < $ilosc) {
+                    throw new \Exception("Brak ilości: {$prod->nazwa}");
+                }
+
+                $wartNetto  = round($ilosc * $cenaNetto, 2);
+                $wartVat    = round($wartNetto * ($vat / 100), 2);
+                $wartBrutto = $wartNetto + $wartVat;
+
+                DB::table('zamowienia_pozycje')->insert([
+                    'id_zamowienia' => $idZam,
+                    'id_produktu'   => $prod->id_produktu,
+                    'kod_sku'       => $prod->kod_sku,
+                    'nazwa'         => $prod->nazwa,
+                    'stawka_vat'    => $vat,
+                    'cena_netto'    => $cenaNetto,
+                    'ilosc'         => $ilosc,
+                    'wart_netto'    => $wartNetto,
+                    'wart_vat'      => $wartVat,
+                    'wart_brutto'   => $wartBrutto,
+                ]);
+
+                DB::table('produkty')
+                    ->where('id_produktu', $prod->id_produktu)
+                    ->update([
+                        'ilosc' => DB::raw('GREATEST(ilosc - '.$ilosc.', 0)')
+                    ]);
+
+                $sumNetto  += $wartNetto;
+                $sumVat    += $wartVat;
+                $sumBrutto += $wartBrutto;
+            }
+
+            // 3. podsumowanie w nagłówku
+            DB::table('zamowienia')
+                ->where('id_zamowienia', $idZam)
+                ->update([
+                    'suma_netto'  => $sumNetto,
+                    'suma_vat'    => $sumVat,
+                    'suma_brutto' => $sumBrutto,
+                ]);
+
+            DB::commit();
+
+            // wyczyszczenie koszyka itd.
+            session()->forget('cart');
+
+            return redirect()->route('konto.zamowienie', $idZam)
+                ->with('success', 'Zamówienie zostało złożone.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Błąd zamówienia: '.$e->getMessage());
+        }
     }
 
     /** Formularz kontaktowy (GET) */
@@ -385,12 +455,18 @@ class FrontendController extends Controller
             'miasto'         => ['required', 'string', 'max:255'],
             'kod_pocztowy'   => ['required', 'regex:/^[0-9]{2}-[0-9]{3}$/'],
             'dostawa'        => ['required', 'in:kurier,odbior'],
-            'platnosc'       => ['required', 'in:blik,przelew,pobranie'],
+            'platnosc'       => ['required', 'in:blik,przelew,pobranie,karta'],
             'distance'       => ['required', 'integer', 'min:1', 'max:500'],
         ];
 
         if ($request->platnosc === 'blik') {
             $rules['blik'] = ['required', 'regex:/^[0-9]{6}$/'];
+        }
+
+        if ($request->platnosc === 'karta') {
+            $rules['card_number'] = ['required', 'regex:/^[0-9]{4} [0-9]{4} [0-9]{4} [0-9]{4}$/'];
+            $rules['card_exp']    = ['required', 'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'];
+            $rules['card_cvv']    = ['required', 'digits:3'];
         }
 
         $validated = $request->validate($rules);
@@ -410,54 +486,129 @@ class FrontendController extends Controller
             return $ilosc * $cena;
         });
 
-        // 3. Obliczenia
+        // 3. Obliczenia dodatkowe
         $distance      = (int)$validated['distance'];
         $dniDostawy    = $this->obliczDniDostawy($distance);
-        [$netto, $vat] = $this->przeliczNettoVat($sumaBrutto);
         $numer         = $this->generujNumerZamowienia();
         $now           = now();
 
-        // 4. Id klienta – tu zależy jak masz powiązane user/klient.
-        // Jeśli kolumna id_klienta może być NULL, zostaw jak poniżej.
+        // 4. Id klienta
         $domyslnyKlientId = 1;
 
-// jeżeli masz logowanie i user jest powiązany z klientem:
         if (auth()->check() && isset(auth()->user()->id_klienta)) {
             $idKlienta = auth()->user()->id_klienta;
         } else {
             $idKlienta = $domyslnyKlientId;
         }
 
-        // 5. Zbudujemy opis w "uwagi", bo tabela nie ma osobnych kolumn na adres
+        // 5. Opis w uwagach
         $uwagi = "Odbiorca: {$validated['imie_nazwisko']} ({$validated['email']}), "
             . "Adres: {$validated['ulica']}, {$validated['kod_pocztowy']} {$validated['miasto']}. "
             . "Dostawa: {$validated['dostawa']}, płatność: {$validated['platnosc']}, "
             . "odległość: {$distance} km, szacowany czas dostawy: {$dniDostawy} dni.";
 
-        // 6. Zapis zamówienia do tabeli `zamowienia`
-        $zamowienie = Zamowienie::create([
-            'numer_zamowienia' => $numer,
-            'id_klienta'       => $idKlienta,                 // jeśli kolumna ma NOT NULL, wpisz np. 0
-            'data_wystawienia' => $now->toDateString(),
-            'status'           => $this->statusStartowy($validated['platnosc']),
-            'suma_netto'       => $netto,
-            'suma_vat'         => $vat,
-            'suma_brutto'      => $sumaBrutto,
-            'uwagi'            => $uwagi,
-            'data_utworzenia'  => $now,
-        ]);
+        // 6. Transakcja: nagłówek + pozycje + magazyn
+        DB::beginTransaction();
 
-        // 7. (na razie) nie zapisujemy pozycji – to można dorobić do osobnej tabeli
-        // jeśli taką masz, dopisz create() w pętli po $cart.
+        try {
+            // 6a. Tworzymy nagłówek zamówienia (na razie sumy = 0, wyliczymy poniżej)
+            $zamowienie = Zamowienie::create([
+                'numer_zamowienia' => $numer,
+                'id_klienta'       => $idKlienta,
+                'data_wystawienia' => $now->toDateString(),
+                'status'           => $this->statusStartowy($validated['platnosc']),
+                'suma_netto'       => 0,
+                'suma_vat'         => 0,
+                'suma_brutto'      => 0,
+                'uwagi'            => $uwagi,
+                'data_utworzenia'  => $now,
+            ]);
 
-        // 8. Czyścimy koszyk
-        session()->forget('cart');
+            $sumNetto  = 0;
+            $sumVat    = 0;
+            $sumBrutto = 0;
 
-        // 9. Komunikat dla klienta
-        return redirect()
-            ->route('sklep')
-            ->with('success', 'Zamówienie zostało złożone. Numer zamówienia: ' . $numer);
+            // 6b. Pozycje zamówienia + aktualizacja stanów magazynowych
+            foreach ($cart as $item) {
+                $productId   = (int)$item['id_produktu'];
+                $ilosc       = (int)$item['ilosc'];
+                $cenaBrutto  = (float)$item['cena_brutto'];
+
+                // pobieramy produkt z bazy z blokadą
+                $prod = DB::table('produkty')
+                    ->where('id_produktu', $productId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$prod) {
+                    throw new \Exception("Produkt ID {$productId} nie istnieje.");
+                }
+
+                if ($ilosc <= 0) {
+                    throw new \Exception("Nieprawidłowa ilość dla produktu {$prod->nazwa}.");
+                }
+
+                if ($prod->ilosc < $ilosc) {
+                    throw new \Exception("Brak ilości: {$prod->nazwa} (dostępne {$prod->ilosc}, zamówiono {$ilosc}).");
+                }
+
+                $vat = (float)$prod->stawka_vat;
+
+                // wyliczamy cenę netto z brutto i stawki VAT
+                $cenaNetto  = round($cenaBrutto / (1 + $vat / 100), 2);
+                $wartBrutto = round($cenaBrutto * $ilosc, 2);
+                $wartNetto  = round($cenaNetto  * $ilosc, 2);
+                $wartVat    = round($wartBrutto - $wartNetto, 2);
+
+                DB::table('zamowienia_pozycje')->insert([
+                    'id_zamowienia' => $zamowienie->id_zamowienia,
+                    'id_produktu'   => $prod->id_produktu,
+                    'kod_sku'       => $prod->kod_sku,
+                    'nazwa'         => $prod->nazwa,
+                    'stawka_vat'    => $vat,
+                    'cena_netto'    => $cenaNetto,
+                    'ilosc'         => $ilosc,
+                    'wart_netto'    => $wartNetto,
+                    'wart_vat'      => $wartVat,
+                    'wart_brutto'   => $wartBrutto,
+                ]);
+
+                // aktualizacja stanu magazynowego
+                DB::table('produkty')
+                    ->where('id_produktu', $prod->id_produktu)
+                    ->update([
+                        'ilosc' => DB::raw('GREATEST(ilosc - '.$ilosc.', 0)')
+                    ]);
+
+                $sumNetto  += $wartNetto;
+                $sumVat    += $wartVat;
+                $sumBrutto += $wartBrutto;
+            }
+
+            // 6c. Uaktualniamy sumy w nagłówku zamówienia
+            $zamowienie->update([
+                'suma_netto'  => $sumNetto,
+                'suma_vat'    => $sumVat,
+                'suma_brutto' => $sumBrutto,
+            ]);
+
+            DB::commit();
+
+            // 7. Czyścimy koszyk
+            session()->forget('cart');
+
+            // 8. Komunikat dla klienta
+            return redirect()
+                ->route('sklep')
+                ->with('success', 'Zamówienie zostało złożone. Numer zamówienia: ' . $numer);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Błąd zamówienia: '.$e->getMessage());
+        }
     }
+
+
 
     private function obliczDniDostawy(int $distance): int
     {

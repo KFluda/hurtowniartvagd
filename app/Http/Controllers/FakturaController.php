@@ -50,28 +50,41 @@ class FakturaController extends Controller
     /** Generowanie jednej faktury VAT w PDF na podstawie zamówienia */
     public function pdf($id)
     {
+        // 1. Nagłówek zamówienia + dane klienta
         $zam = DB::table('zamowienia as z')
             ->leftJoin('klienci as k', 'k.id_klienta', '=', 'z.id_klienta')
-            ->select('z.*', 'k.nazwa as klient', 'k.nip', 'k.miasto', 'k.ulica', 'k.kod_pocztowy', 'k.email', 'k.telefon')
-            ->where('z.id_zamowienia', $id)
+            ->select(
+                'z.*',
+                'k.nazwa as klient',
+                'k.nip',
+                'k.miasto',
+                'k.ulica',
+                'k.kod_pocztowy',
+                'k.email',
+                'k.telefon'
+            )
+            ->where('z.id_zamowienia', (int)$id)
             ->first();
 
-        if (!$zam) abort(404);
+        if (!$zam) {
+            abort(404);
+        }
 
-        // ❗ twarda blokada – tylko zrealizowane
+        // jeśli chcesz dalej blokadę na status:
         if ($zam->status !== 'zrealizowane') {
             return redirect()
                 ->route('faktury.index')
                 ->with('error', 'Fakturę można wygenerować tylko dla zamówienia w statusie „zrealizowane”.');
         }
 
-        $pozycje = DB::table('zamowienia_pozycje')
-            ->where('id_zamowienia', $id)
-            ->orderBy('id_pozycji')
+        // 2. POBIERAMY POZYCJE TYLKO DLA TEGO KONKRETNEGO ID
+        $pozycje = DB::table('zamowienia_pozycje as zp')
+            ->where('zp.id_zamowienia', $zam->id_zamowienia)
+            ->orderBy('zp.id_pozycji')
             ->get();
 
-        // numer faktury wg Twojej logiki…
-        $nrFaktury = 'FV/'.date('Y').'/'.$zam->id_zamowienia;
+        // 3. Numer faktury – jak chcesz
+        $nrFaktury = 'F/'.date('Y').'/'.$zam->id_zamowienia;
 
         $pdf = \PDF::loadView('faktury.vat', [
             'zam'       => $zam,
@@ -81,5 +94,6 @@ class FakturaController extends Controller
 
         return $pdf->download("Faktura_{$nrFaktury}.pdf");
     }
+
 
 }

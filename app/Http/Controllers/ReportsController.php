@@ -25,8 +25,7 @@ class ReportsController extends Controller
         ]);
     }
 
-
-    /** JSON: Obrót (suma_brutto) w czasie */
+    /** JSON: Obrót (suma_brutto) w czasie – dla pierwszego wykresu "Obrót" */
     public function obrotData(Request $request)
     {
         [$from, $to, $groupFormat] = $this->resolveRangeAndGroup($request);
@@ -42,7 +41,7 @@ class ReportsController extends Controller
 
         return response()->json([
             'labels' => $rows->pluck('label'),
-            'values' => $rows->pluck('value')->map(fn($v)=> round((float)$v,2)),
+            'values' => $rows->pluck('value')->map(fn($v) => round((float)$v, 2)),
         ]);
     }
 
@@ -61,7 +60,7 @@ class ReportsController extends Controller
 
         return response()->json([
             'labels' => $rows->pluck('label'),
-            'values' => $rows->pluck('value')->map(fn($v)=> (int)$v),
+            'values' => $rows->pluck('value')->map(fn($v) => (int)$v),
         ]);
     }
 
@@ -81,7 +80,7 @@ class ReportsController extends Controller
 
         $rows = DB::table('zamowienia_pozycje as zp')
             ->join('zamowienia as z', 'z.id_zamowienia', '=', 'zp.id_zamowienia')
-            ->selectRaw('zp.nazwa as label, '.$selectAgg)
+            ->selectRaw('zp.nazwa as label, ' . $selectAgg)
             ->whereBetween('z.data_wystawienia', [$from, $to])
             ->groupBy('zp.nazwa')
             ->orderByDesc('metric')
@@ -90,7 +89,28 @@ class ReportsController extends Controller
 
         return response()->json([
             'labels' => $rows->pluck('label'),
-            'values' => $rows->pluck('metric')->map(fn($v)=> round((float)$v,2)),
+            'values' => $rows->pluck('metric')->map(fn($v) => round((float)$v, 2)),
+        ]);
+    }
+
+    /** JSON: Dochód (suma_brutto) w czasie – dla wykresu "Dochód wg okresu" */
+    public function dochodyData(Request $request)
+    {
+        // Możesz to zmienić, jeśli chcesz inne filtrowanie niż w obrotData()
+        [$from, $to, $groupFormat] = $this->resolveRangeAndGroup($request);
+
+        $rows = DB::table('zamowienia')
+            ->selectRaw("DATE_FORMAT(data_wystawienia, '{$groupFormat}') as label")
+            ->selectRaw('SUM(suma_brutto) as value')
+            ->whereBetween('data_wystawienia', [$from, $to])
+            ->where('status', '!=', 'anulowane')
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+
+        return response()->json([
+            'labels' => $rows->pluck('label'),
+            'values' => $rows->pluck('value')->map(fn($v) => round((float)$v, 2)),
         ]);
     }
 
@@ -119,11 +139,8 @@ class ReportsController extends Controller
 
         // fallback dla kwartalnego – jeśli Twoja wersja MySQL nie wspiera %q:
         if ($period === 'quarter' && ! $this->mysqlSupportsQuarterInDateFormat()) {
-            // ersatz: CONCAT('Q', QUARTER(data_wystawienia), ' ', YEAR(data_wystawienia))
-            $format = '%Y-%m'; // użyj miesiąca albo niżej zróbmy raw:
-            // Możesz też przerobić select na:
-            // ->selectRaw("CONCAT('Q', QUARTER(data_wystawienia),' ',YEAR(data_wystawienia)) as label")
-            // i wtedy pominąć DATE_FORMAT
+            // tutaj możesz dorobić własne grupowanie po kwartale
+            $format = '%Y-%m';
         }
 
         return [$from, $to, $format];
@@ -134,7 +151,7 @@ class ReportsController extends Controller
     {
         $from = $request->query('from', now()->firstOfMonth()->format('Y-m-d'));
         $to   = $request->query('to',   now()->format('Y-m-d'));
-        return [$from.' 00:00:00', $to.' 23:59:59'];
+        return [$from . ' 00:00:00', $to . ' 23:59:59'];
     }
 
     /** Domyślny zakres dla predefiniowanych okresów */
@@ -142,23 +159,36 @@ class ReportsController extends Controller
     {
         $today = now();
         return match ($period) {
-            'day'     => [$today->copy()->startOfDay()->format('Y-m-d H:i:s'),
-                $today->copy()->endOfDay()->format('Y-m-d H:i:s')],
-            'week'    => [$today->copy()->startOfWeek()->format('Y-m-d H:i:s'),
-                $today->copy()->endOfWeek()->format('Y-m-d H:i:s')],
-            'month'   => [$today->copy()->firstOfMonth()->format('Y-m-d H:i:s'),
-                $today->copy()->endOfMonth()->format('Y-m-d H:i:s')],
-            'quarter' => [$today->copy()->firstOfQuarter()->format('Y-m-d H:i:s'),
-                $today->copy()->lastOfQuarter()->format('Y-m-d H:i:s')],
-            'year'    => [$today->copy()->firstOfYear()->format('Y-m-d H:i:s'),
-                $today->copy()->endOfYear()->format('Y-m-d H:i:s')],
-            default   => [$today->copy()->firstOfMonth()->format('Y-m-d H:i:s'),
-                $today->copy()->endOfMonth()->format('Y-m-d H:i:s')],
+            'day'     => [
+                $today->copy()->startOfDay()->format('Y-m-d H:i:s'),
+                $today->copy()->endOfDay()->format('Y-m-d H:i:s'),
+            ],
+            'week'    => [
+                $today->copy()->startOfWeek()->format('Y-m-d H:i:s'),
+                $today->copy()->endOfWeek()->format('Y-m-d H:i:s'),
+            ],
+            'month'   => [
+                $today->copy()->firstOfMonth()->format('Y-m-d H:i:s'),
+                $today->copy()->endOfMonth()->format('Y-m-d H:i:s'),
+            ],
+            'quarter' => [
+                $today->copy()->firstOfQuarter()->format('Y-m-d H:i:s'),
+                $today->copy()->lastOfQuarter()->format('Y-m-d H:i:s'),
+            ],
+            'year'    => [
+                $today->copy()->firstOfYear()->format('Y-m-d H:i:s'),
+                $today->copy()->endOfYear()->format('Y-m-d H:i:s'),
+            ],
+            default   => [
+                $today->copy()->firstOfMonth()->format('Y-m-d H:i:s'),
+                $today->copy()->endOfMonth()->format('Y-m-d H:i:s'),
+            ],
         };
     }
 
     private function mysqlSupportsQuarterInDateFormat(): bool
     {
+        // jeśli kiedyś zaktualizujesz MySQL i będzie wspierał %q, zmień na true
         return false;
     }
 }

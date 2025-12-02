@@ -8,7 +8,7 @@
     <form id="filters" class="row g-2 align-items-end mb-3">
         <div class="col-md-3">
             <label class="form-label">Okres</label>
-            <select name="period" class="form-select">
+            <select name="period" id="period" class="form-select">
                 <option value="day"     @selected($defaultPeriod==='day')>Dzień</option>
                 <option value="week"    @selected($defaultPeriod==='week')>Tydzień</option>
                 <option value="month"   @selected($defaultPeriod==='month')>Miesiąc</option>
@@ -18,12 +18,13 @@
             </select>
         </div>
 
-        <div class="col-md-3">
+        {{-- pola Od / Do pokazywane tylko dla "Własny zakres" --}}
+        <div class="col-md-3 js-date-range {{ $defaultPeriod !== 'range' ? 'd-none' : '' }}">
             <label class="form-label">Od</label>
             <input type="date" name="from" class="form-control" value="{{ $defaultFrom }}">
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-3 js-date-range {{ $defaultPeriod !== 'range' ? 'd-none' : '' }}">
             <label class="form-label">Do</label>
             <input type="date" name="to" class="form-control" value="{{ $defaultTo }}">
         </div>
@@ -65,6 +66,16 @@
             </div>
         </div>
 
+        {{-- NOWY WYKRES: Dochód wg okresu --}}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Dochód wg okresu</h5>
+                    <canvas id="chartDochody" height="140"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
@@ -81,14 +92,31 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const f = document.querySelector('#filters');
-        const chartObrotCtx = document.getElementById('chartObrot').getContext('2d');
-        const chartZamCtx   = document.getElementById('chartZamowienia').getContext('2d');
-        const chartTopCtx   = document.getElementById('chartTopProdukty').getContext('2d');
 
-        let chartObrot, chartZam, chartTop;
+        // --- POKAZYWANIE / UKRYWANIE pól "Od / Do" ---
+        const periodSelect    = document.getElementById('period');
+        const dateRangeGroups = document.querySelectorAll('.js-date-range');
+
+        const toggleDateRange = () => {
+            const show = periodSelect.value === 'range';
+            dateRangeGroups.forEach(el => {
+                el.classList.toggle('d-none', !show);
+            });
+        };
+
+        periodSelect.addEventListener('change', toggleDateRange);
+        toggleDateRange(); // ustaw od razu po załadowaniu
+        // --- KONIEC BLOKU ---
+
+        const chartObrotCtx   = document.getElementById('chartObrot').getContext('2d');
+        const chartZamCtx     = document.getElementById('chartZamowienia').getContext('2d');
+        const chartDochCtx    = document.getElementById('chartDochody').getContext('2d');
+        const chartTopCtx     = document.getElementById('chartTopProdukty').getContext('2d');
+
+        let chartObrot, chartZam, chartTop, chartDoch;
 
         const fetchJSON = async (url, params) => {
-            const qs = new URLSearchParams(params).toString();
+            const qs  = new URLSearchParams(params).toString();
             const res = await fetch(url + '?' + qs, { headers: { 'X-Requested-With':'XMLHttpRequest' }});
             return res.json();
         };
@@ -104,35 +132,88 @@
         const loadCharts = async () => {
             const params = currentParams();
 
-            const obrot = await fetchJSON('{{ route('raporty.data.obrot') }}', params);
-            const zam   = await fetchJSON('{{ route('raporty.data.zamowienia') }}', params);
-            const top   = await fetchJSON('{{ route('raporty.data.topProdukty') }}', params);
+            const obrot  = await fetchJSON('{{ route('raporty.data.obrot') }}', params);
+            const zam    = await fetchJSON('{{ route('raporty.data.zamowienia') }}', params);
+            const dochod = await fetchJSON('{{ route('raporty.data.dochod') }}', params); // NOWE
+            const top    = await fetchJSON('{{ route('raporty.data.topProdukty') }}', params);
 
             // Obrót
             chartObrot && chartObrot.destroy();
             chartObrot = new Chart(chartObrotCtx, {
                 type: 'line',
-                data: { labels: obrot.labels, datasets: [{ label:'Obrót (brutto)', data: obrot.values, borderWidth:2, tension:.2 }] },
-                options: { responsive:true, scales:{ y:{ beginAtZero:true } } }
+                data: {
+                    labels: obrot.labels,
+                    datasets: [{
+                        label: 'Obrót (brutto)',
+                        data: obrot.values,
+                        borderWidth: 2,
+                        tension: .2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
             });
 
             // Liczba zamówień
             chartZam && chartZam.destroy();
             chartZam = new Chart(chartZamCtx, {
                 type: 'bar',
-                data: { labels: zam.labels, datasets: [{ label:'Zamówienia (szt.)', data: zam.values, borderWidth:1 }] },
-                options: { responsive:true, scales:{ y:{ beginAtZero:true } } }
+                data: {
+                    labels: zam.labels,
+                    datasets: [{
+                        label: 'Zamówienia (szt.)',
+                        data: zam.values,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // NOWY WYKRES: Dochód wg okresu
+            chartDoch && chartDoch.destroy();
+            chartDoch = new Chart(chartDochCtx, {
+                type: 'bar',
+                data: {
+                    labels: dochod.labels,
+                    datasets: [{
+                        label: 'Dochód (suma brutto)',
+                        data: dochod.values,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => value.toLocaleString('pl-PL') + ' zł'
+                            }
+                        }
+                    }
+                }
             });
 
             // TOP produkty
             chartTop && chartTop.destroy();
             chartTop = new Chart(chartTopCtx, {
                 type: 'bar',
-                data: { labels: top.labels, datasets: [{ label: (params.rankBy==='qty'?'Ilość':'Wartość brutto'), data: top.values }] },
+                data: {
+                    labels: top.labels,
+                    datasets: [{
+                        label: (params.rankBy === 'qty' ? 'Ilość' : 'Wartość brutto'),
+                        data: top.values
+                    }]
+                },
                 options: {
-                    responsive:true,
-                    indexAxis:'y',
-                    scales:{ x:{ beginAtZero:true } }
+                    responsive: true,
+                    indexAxis: 'y',
+                    scales: { x: { beginAtZero: true } }
                 }
             });
         };

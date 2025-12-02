@@ -8,7 +8,10 @@ use Illuminate\Validation\Rule;
 
 class ProduktController extends Controller
 {
-    public function __construct() { $this->middleware('auth'); }
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
 
     public function index(Request $request)
     {
@@ -37,20 +40,30 @@ class ProduktController extends Controller
         $producenci = DB::table('producenci')->orderBy('nazwa')->get();
         $kategorie  = DB::table('kategorie')->orderBy('nazwa')->get();
 
+        // domyślny "pusty" produkt do formularza
         $produkt = (object)[
-            'kod_sku' => '', 'ean' => '', 'nazwa' => '',
-            'id_producenta' => null, 'id_kategorii' => null,
-            'waga_kg' => null, 'glebokosc_mm' => null, 'szerokosc_mm' => null, 'wysokosc_mm' => null,
-            'gwarancja_miesiecy' => 24, 'czy_z_numerem_seryjnym' => 0,
-            // jeśli kolumna stawka_vat nie jest już używana, możesz to pole całkiem usunąć
-            'stawka_vat' => null,
-            'aktywny' => 1,
-            'ilosc' => 0, // ✅ domyślny stan magazynowy
+            'kod_sku'               => '',
+            'ean'                   => '',
+            'nazwa'                 => '',
+            'id_producenta'         => null,
+            'id_kategorii'          => null,
+            'waga_kg'               => null,
+            'ilosc'                 => 0,
+            'glebokosc_mm'          => null,
+            'szerokosc_mm'          => null,
+            'wysokosc_mm'           => null,
+            'gwarancja_miesiecy'    => 24,
+            'czy_z_numerem_seryjnym'=> 0,
+            'stawka_vat'            => 23,
+            'cena_netto'            => null,
+            'aktywny'               => 1,
+            'image'                 => null,
         ];
 
-        return view('produkty.form', [
-            'mode' => 'create', 'produkt' => $produkt,
-            'producenci' => $producenci, 'kategorie' => $kategorie
+        return view('produkty.create', [
+            'produkt'    => $produkt,
+            'producenci' => $producenci,
+            'kategorie'  => $kategorie,
         ]);
     }
 
@@ -68,12 +81,24 @@ class ProduktController extends Controller
             'wysokosc_mm'            => ['nullable','integer','min:0'],
             'gwarancja_miesiecy'     => ['nullable','integer','min:0'],
             'czy_z_numerem_seryjnym' => ['nullable','in:0,1'],
-            // 'stawka_vat'           => ['nullable','numeric','min:0'], // ← jeżeli nie używasz, usuń
             'aktywny'                => ['required','in:0,1'],
-            'ilosc'                  => ['required','numeric','min:0'], // ✅ NOWE: zapisujemy stan
+            'ilosc'                  => ['required','numeric','min:0'],
+
+            'cena_netto'             => ['nullable','numeric','min:0'],
+            'stawka_vat'             => ['nullable','numeric','min:0'],
+            'image'                  => ['nullable','image','max:2048'], // jpg, png, webp...
         ]);
 
-        DB::table('produkty')->insert($data + ['data_utworzenia' => now()]);
+        // Upload zdjęcia
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public'); // storage/app/public/products
+            $data['image'] = basename($path);
+        }
+
+        $data['data_utworzenia'] = now();
+
+        DB::table('produkty')->insert($data);
+
         return redirect()->route('produkty.index')->with('status','Produkt dodany.');
     }
 
@@ -85,32 +110,36 @@ class ProduktController extends Controller
         $producenci = DB::table('producenci')->orderBy('nazwa')->get();
         $kategorie  = DB::table('kategorie')->orderBy('nazwa')->get();
 
-        return view('produkty.form', [
-            'mode' => 'edit','id' => $id,'produkt' => $produkt,
-            'producenci' => $producenci,'kategorie' => $kategorie
+        return view('produkty.edit', [
+            'produkt'    => $produkt,
+            'producenci' => $producenci,
+            'kategorie'  => $kategorie,
         ]);
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
-            'nazwa'                => 'required|string|max:255',
-            'kod_sku'              => ['required','string','max:64', Rule::unique('produkty','kod_sku')->ignore($id,'id_produktu')],
-            'ean'                  => 'nullable|string|max:64',
-            'id_producenta'        => 'nullable|integer|exists:producenci,id_producenta',
-            'id_kategorii'         => 'nullable|integer|exists:kategorie,id_kategorii',
-            'waga_kg'              => 'nullable|numeric|min:0',
-            'glebokosc_mm'         => 'nullable|integer|min:0',
-            'szerokosc_mm'         => 'nullable|integer|min:0',
-            'wysokosc_mm'          => 'nullable|integer|min:0',
-            'gwarancja_miesiecy'   => 'nullable|integer|min:0',
-            'czy_z_numerem_seryjnym'=> 'nullable|in:0,1',
-            // 'stawka_vat'         => 'nullable|numeric|min:0', // ← jeżeli nie używasz, usuń
-            'aktywny'              => 'nullable|in:0,1',
-            'ilosc'                => 'required|numeric|min:0', // ✅ może być też decimal
+            'nazwa'                  => 'required|string|max:255',
+            'kod_sku'                => ['required','string','max:64', Rule::unique('produkty','kod_sku')->ignore($id,'id_produktu')],
+            'ean'                    => 'nullable|string|max:64',
+            'id_producenta'          => 'nullable|integer|exists:producenci,id_producenta',
+            'id_kategorii'           => 'nullable|integer|exists:kategorie,id_kategorii',
+            'waga_kg'                => 'nullable|numeric|min:0',
+            'glebokosc_mm'           => 'nullable|integer|min:0',
+            'szerokosc_mm'           => 'nullable|integer|min:0',
+            'wysokosc_mm'            => 'nullable|integer|min:0',
+            'gwarancja_miesiecy'     => 'nullable|integer|min:0',
+            'czy_z_numerem_seryjnym' => 'nullable|in:0,1',
+            'aktywny'                => 'nullable|in:0,1',
+            'ilosc'                  => 'required|numeric|min:0',
+
+            'cena_netto'             => 'nullable|numeric|min:0',
+            'stawka_vat'             => 'nullable|numeric|min:0',
+            'image'                  => 'nullable|image|max:2048',
         ]);
 
-        DB::table('produkty')->where('id_produktu', $id)->update([
+        $data = [
             'nazwa'                 => $request->nazwa,
             'kod_sku'               => $request->kod_sku,
             'ean'                   => $request->ean,
@@ -119,15 +148,23 @@ class ProduktController extends Controller
             'waga_kg'               => $request->waga_kg,
             'glebokosc_mm'          => $request->glebokosc_mm,
             'szerokosc_mm'          => $request->szerokosc_mm,
-            'wysokosc_mm'           => $request->wysokosc_mm,
+            'wysokosc_mm'          => $request->wysokosc_mm,
             'gwarancja_miesiecy'    => $request->gwarancja_miesiecy,
             'czy_z_numerem_seryjnym'=> $request->czy_z_numerem_seryjnym,
-            // 'stawka_vat'          => $request->stawka_vat, // ← jeżeli nie używasz, usuń
             'aktywny'               => $request->boolean('aktywny'),
-            'ilosc'                 => $request->ilosc,          // ✅ zapis ilości
-        ]);
+            'ilosc'                 => $request->ilosc,
+            'cena_netto'            => $request->cena_netto,
+            'stawka_vat'            => $request->stawka_vat,
+        ];
 
-        return redirect()->route('produkty.index')->with('success', 'Produkt zaktualizowany.');
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public');
+            $data['image'] = basename($path);
+        }
+
+        DB::table('produkty')->where('id_produktu', $id)->update($data);
+
+        return redirect()->route('produkty.index')->with('status', 'Produkt zaktualizowany.');
     }
 
     public function destroy($id)

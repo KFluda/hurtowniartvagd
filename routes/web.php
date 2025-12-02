@@ -12,7 +12,15 @@ use App\Http\Controllers\ZamowienieController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\FrontendController;
+use App\Http\Controllers\ContactController;
 
+/*
+|--------------------------------------------------------------------------
+| PUBLICZNE TRASY
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/kontakt', [ContactController::class, 'wyslij'])->name('kontakt.wyslij');
 
 Route::get('/konto', [FrontendController::class, 'konto'])
     ->middleware('auth')
@@ -27,27 +35,20 @@ Route::get('/platnosc-blik', [FrontendController::class, 'blikForm'])->name('pla
 Route::post('/platnosc-blik', [FrontendController::class, 'blikPay'])->name('platnosc.blik.pay');
 
 /* ===================== PUBLICZNE ===================== */
-Route::get('/koszyk', [FrontendController::class, 'cart'])->name('koszyk');
-// SKLEP (nazwa: sklep – używana w layoutach)
-Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
-Route::post('/koszyk/dodaj', [FrontendController::class, 'addToCart'])->name('koszyk.add');
-// KOSZYK
-Route::post('/koszyk/update', [FrontendController::class, 'updateCart'])->name('koszyk.update');
-Route::post('/koszyk/usun', [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
-/* ===================== PUBLICZNE ===================== */
 
 // SKLEP
 Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
 
-/* KOSZYK */
+// KOSZYK
 Route::get('/koszyk', [FrontendController::class, 'cart'])->name('koszyk');
-Route::post('/koszyk/dodaj', [FrontendController::class, 'addToCart'])->name('koszyk.add');
-Route::post('/koszyk/aktualizuj', [FrontendController::class, 'updateCart'])->name('koszyk.update');
-Route::post('/koszyk/usun', [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
+Route::post('/koszyk/dodaj',     [FrontendController::class, 'addToCart'])->name('koszyk.add');
+Route::post('/koszyk/update',    [FrontendController::class, 'updateCart'])->name('koszyk.update');
+Route::post('/koszyk/aktualizuj',[FrontendController::class, 'updateCart'])->name('koszyk.update');
+Route::post('/koszyk/usun',      [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
 
 // O nas / Kontakt
 Route::view('/o-nas', 'pages.o-nas')->name('pages.o-nas');
-Route::get('/kontakt', [FrontendController::class, 'contactForm'])->name('kontakt.form');
+Route::get('/kontakt',  [FrontendController::class, 'contactForm'])->name('kontakt.form');
 Route::post('/kontakt', [FrontendController::class, 'contactSend'])->name('kontakt.send');
 
 // Strona główna + produkt + formularz zapytania
@@ -67,15 +68,28 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/rejestracja',  [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/rejestracja', [AuthController::class, 'register'])->name('register.post');
 
-/* ===================== WSPÓLNE DLA KAŻDEGO ZALOGOWANEGO ===================== */
+/*
+|--------------------------------------------------------------------------
+| RAPORT – dodatkowy endpoint obrotOkres (jeśli potrzebujesz go publicznie)
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/raporty/data/obrot-okres', [ReportsController::class, 'obrotOkres'])
+    ->name('raporty.data.obrotOkres');
+
+/*
+|--------------------------------------------------------------------------
+| WSPÓLNE DLA KAŻDEGO ZALOGOWANEGO
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/produkty',              [ProduktController::class, 'index'])->name('produkty.index');
+    Route::get('/produkty', [ProduktController::class, 'index'])->name('produkty.index');
+
     Route::middleware(['auth', 'role:ADMIN,KIEROWNIK,PRACOWNIK'])->group(function () {
         Route::get('/panel', [DashboardController::class, 'index'])->name('panel');
     });
-
 
     /* Produkty */
     Route::get('/produkty',              [ProduktController::class, 'index'])->name('produkty.index');
@@ -125,7 +139,7 @@ Route::middleware('auth')->group(function () {
     /* Ustawienia (placeholder) */
     Route::view('/ustawienia', 'placeholder')->name('ustawienia.index');
 
-    /* Zamówienia – LISTA + PODGLĄD + ZMIANA STATUSU (wszyscy zalogowani, także PRACOWNIK) */
+    /* Zamówienia – LISTA + PODGLĄD + ZMIANA STATUSU */
     Route::get('/zamowienia', [ZamowienieController::class, 'index'])->name('zamowienia.index');
 
     Route::get('/zamowienia/{id}', [ZamowienieController::class, 'show'])
@@ -137,16 +151,20 @@ Route::middleware('auth')->group(function () {
         ->name('zamowienia.status');
 });
 
-
-/* ===================== ADMIN + KIEROWNIK ===================== */
+/*
+|--------------------------------------------------------------------------
+| ADMIN + KIEROWNIK
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['auth', 'role:ADMIN,KIEROWNIK'])->group(function () {
 
     /* Raporty + API do wykresów */
-    Route::get('/raporty', [ReportsController::class, 'index'])->name('raporty.index');
-    Route::get('/raporty/data/obrot',        [ReportsController::class, 'obrotData'])->name('raporty.data.obrot');
-    Route::get('/raporty/data/zamowienia',   [ReportsController::class, 'zamowieniaData'])->name('raporty.data.zamowienia');
-    Route::get('/raporty/data/top-produkty', [ReportsController::class, 'topProduktyData'])->name('raporty.data.topProdukty');
+    Route::get('/raporty',                     [ReportsController::class, 'index'])->name('raporty.index');
+    Route::get('/raporty/data/obrot',          [ReportsController::class, 'obrotData'])->name('raporty.data.obrot');
+    Route::get('/raporty/data/zamowienia',     [ReportsController::class, 'zamowieniaData'])->name('raporty.data.zamowienia');
+    Route::get('/raporty/data/top-produkty',   [ReportsController::class, 'topProduktyData'])->name('raporty.data.topProdukty');
+    Route::get('/raporty/data/dochody',        [ReportsController::class, 'dochodyData'])->name('raporty.data.dochod');
 
     /* Faktury sprzedaży */
     Route::get('/faktury',          [FakturaController::class, 'index'])->name('faktury.index');
@@ -167,8 +185,11 @@ Route::middleware(['auth', 'role:ADMIN,KIEROWNIK'])->group(function () {
     Route::get('/ruchy',  fn () => redirect()->route('zamowienia.index'))->name('ruchy.index');
 });
 
-
-/* ===================== ADMIN – użytkownicy ===================== */
+/*
+|--------------------------------------------------------------------------
+| ADMIN – użytkownicy
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware(['auth', 'role:ADMIN'])->group(function () {
     Route::get   ('/uzytkownicy',             [UsersController::class,'index'])->name('uzytkownicy.index');
