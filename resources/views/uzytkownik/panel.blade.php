@@ -50,9 +50,6 @@ $isManagerOrAdmin = $isAdmin || $isKierownik; // ADMIN + KIEROWNIK
             <a class="nav-link {{ request()->routeIs('zamowienia.index') ? 'active' : '' }}" href="{{ route('zamowienia.index') }}">Zamówienia</a>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('magazyn.*') ? 'active' : '' }}" href="{{ route('magazyn.stany') }}">Magazyn</a>
-        </li>
 
         <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('klienci.*') ? 'active' : '' }}" href="{{ route('klienci.index') }}">Klienci</a>
@@ -68,10 +65,6 @@ $isManagerOrAdmin = $isAdmin || $isKierownik; // ADMIN + KIEROWNIK
             <a class="nav-link {{ request()->routeIs('raporty.*') ? 'active' : '' }}" href="{{ route('raporty.index') }}">Raporty</a>
         </li>
         @endif
-
-        <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('ustawienia.*') ? 'active' : '' }}" href="{{ route('ustawienia.index') }}">Ustawienia</a>
-        </li>
 
         {{-- Użytkownicy: tylko ADMIN --}}
         @if($isAdmin)
