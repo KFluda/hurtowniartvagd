@@ -90,14 +90,6 @@ $isManagerOrAdmin = $isAdmin || $isKierownik; // ADMIN + KIEROWNIK
         <div class="col-sm-6 col-lg-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted small">Magazyny</div>
-                    <div class="fs-4 fw-bold">{{ $counts['magazyny'] ?? '—' }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
                     <div class="text-muted small">Klienci</div>
                     <div class="fs-4 fw-bold">{{ $counts['klienci'] ?? '—' }}</div>
                 </div>
@@ -149,15 +141,6 @@ $isManagerOrAdmin = $isAdmin || $isKierownik; // ADMIN + KIEROWNIK
         </div>
         @endif
 
-        <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">Stany magazynowe</h5>
-                    <p class="text-muted">Aktualna dostępność i rezerwacje na magazynach.</p>
-                    <a href="{{ route('magazyn.stany') }}" class="btn btn-outline-primary">Przejdź</a>
-                </div>
-            </div>
-        </div>
 
         {{-- Zamówienia (lista) zawsze widoczne --}}
         <div class="col-md-4">
