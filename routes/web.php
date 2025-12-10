@@ -43,7 +43,6 @@ Route::get('/sklep', [FrontendController::class, 'index'])->name('sklep');
 Route::get('/koszyk', [FrontendController::class, 'cart'])->name('koszyk');
 Route::post('/koszyk/dodaj',     [FrontendController::class, 'addToCart'])->name('koszyk.add');
 Route::post('/koszyk/update',    [FrontendController::class, 'updateCart'])->name('koszyk.update');
-Route::post('/koszyk/aktualizuj',[FrontendController::class, 'updateCart'])->name('koszyk.update');
 Route::post('/koszyk/usun',      [FrontendController::class, 'removeFromCart'])->name('koszyk.remove');
 
 // O nas / Kontakt
