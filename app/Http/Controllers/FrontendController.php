@@ -9,18 +9,17 @@ use Illuminate\Support\Facades\Mail;
 
 class FrontendController extends Controller
 {
-    /** Strona główna */
+
     public function home()
     {
         return view('frontend.home');
     }
 
-    /** Sklep – lista produktów */
-    // app/Http/Controllers/FrontendController.php
+
 
     public function index(Request $request)
     {
-        // 1) Parametry z URL
+
         $q         = trim((string) $request->query('q', ''));
         $sort      = $request->query('sort', '');
         $kategoria = $request->query('kategoria', '');
@@ -29,7 +28,7 @@ class FrontendController extends Controller
         $cena_max  = $request->query('cena_max', '');
         $seryjny   = $request->query('seryjny', '');   // 0 / 1 / ''
 
-        // 2) Bazowe zapytanie o produkty (tylko aktywne)
+
         $query = DB::table('produkty as p')
             ->leftJoin('kategorie as k', 'k.id_kategorii', '=', 'p.id_kategorii')
             ->leftJoin('producenci as pr', 'pr.id_producenta', '=', 'p.id_producenta')
@@ -48,7 +47,7 @@ class FrontendController extends Controller
                 'pr.nazwa as producent_nazwa'
             );
 
-        // 3) Wyszukiwanie po nazwie / SKU
+
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
                 $w->where('p.nazwa', 'like', "%{$q}%")
@@ -56,22 +55,22 @@ class FrontendController extends Controller
             });
         }
 
-        // 4) Filtr: kategoria
+
         if ($kategoria !== '') {
             $query->where('p.id_kategorii', (int) $kategoria);
         }
 
-        // 5) Filtr: producent
+
         if ($producent !== '') {
             $query->where('p.id_producenta', (int) $producent);
         }
 
-        // 6) Filtr: czy z numerem seryjnym
+
         if ($seryjny === '0' || $seryjny === '1') {
             $query->where('p.czy_z_numerem_seryjnym', (int) $seryjny);
         }
 
-        // 7) Filtr: cena (po BRUTTO – to co widzi klient)
+
         if ($cena_min !== '' && is_numeric(str_replace(',', '.', $cena_min))) {
             $cenaMin = (float) str_replace(',', '.', $cena_min);
             $query->whereRaw(
@@ -88,7 +87,7 @@ class FrontendController extends Controller
             );
         }
 
-        // 8) Sortowanie
+
         switch ($sort) {
             case 'price_asc':
                 $query->orderBy('cena_brutto', 'asc');
@@ -111,10 +110,10 @@ class FrontendController extends Controller
                 break;
         }
 
-        // 9) Paginacja – zachowuje parametry filtrów w URL
+
         $produkty = $query->paginate(12)->withQueryString();
 
-        // 10) Listy kategorii i producentów do selectów
+
         $kategorie = DB::table('kategorie')
             ->select('id_kategorii', 'nazwa')
             ->orderBy('nazwa')
@@ -125,7 +124,7 @@ class FrontendController extends Controller
             ->orderBy('nazwa')
             ->get();
 
-        // 11) Widok
+
         return view('frontend.index', [
             'produkty'   => $produkty,
             'q'          => $q,
@@ -144,7 +143,7 @@ class FrontendController extends Controller
         $user = auth()->user();
         $email = $user->email;
 
-        // Szukamy zamówień po mailu zapisanym w "uwagi"
+
         $zamowienia = Zamowienie::where('uwagi', 'like', '%(' . $email . ')%')
             ->orderByDesc('data_utworzenia')
             ->get();
@@ -159,7 +158,7 @@ class FrontendController extends Controller
         $user  = auth()->user();
         $email = $user->email;
 
-        // Zamówienie musi "należeć" do tego maila
+
         $zamowienie = Zamowienie::where('id_zamowienia', $id)
             ->where('uwagi', 'like', '%(' . $email . ')%')
             ->firstOrFail();
@@ -173,8 +172,7 @@ class FrontendController extends Controller
 
 
 
-    /** Szczegóły produktu */
-    /** Szczegóły produktu */
+
     public function show($id)
     {
         $produkt = DB::table('produkty as p')
@@ -194,8 +192,7 @@ class FrontendController extends Controller
             abort(404);
         }
 
-        // adres obrazka – z bazy, a jeśli brak to placeholder
-        // adres obrazka – z bazy, a jeśli brak to lokalny placeholder
+
         $produkt->image_url = $produkt->image
             ? asset('storage/products/'.$produkt->image)
             : asset('images/placeholder-produkt.png');
@@ -218,7 +215,7 @@ class FrontendController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1. nagłówek zamówienia (klient z frontu)
+
             $idZam = DB::table('zamowienia')->insertGetId([
                 'numer_zamowienia' => 'ZAM-' . date('Ymd') . '-' . Str::upper(Str::random(6)),
                 'id_klienta'       => auth()->id() ? /* twój id_klienta */ null : null,
@@ -281,7 +278,7 @@ class FrontendController extends Controller
                 $sumBrutto += $wartBrutto;
             }
 
-            // 3. podsumowanie w nagłówku
+
             DB::table('zamowienia')
                 ->where('id_zamowienia', $idZam)
                 ->update([
@@ -292,7 +289,7 @@ class FrontendController extends Controller
 
             DB::commit();
 
-            // wyczyszczenie koszyka itd.
+
             session()->forget('cart');
 
             return redirect()->route('konto.zamowienie', $idZam)

@@ -13,7 +13,7 @@ class FakturaController extends Controller
         $this->middleware('auth');
     }
 
-    /** Lista zamówień (źródło faktur) */
+
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
@@ -30,7 +30,7 @@ class FakturaController extends Controller
                 'z.status',
                 'k.nazwa as klient'
             )
-            ->where('z.status', 'zrealizowane')       // tylko zrealizowane (jak chciałeś)
+            ->where('z.status', 'zrealizowane')
             ->when($q, function ($query) use ($q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('z.numer_zamowienia', 'like', "%$q%")
@@ -50,7 +50,7 @@ class FakturaController extends Controller
     /** Generowanie jednej faktury VAT w PDF na podstawie zamówienia */
     public function pdf($id)
     {
-        // 1. Nagłówek zamówienia + dane klienta
+
         $zam = DB::table('zamowienia as z')
             ->leftJoin('klienci as k', 'k.id_klienta', '=', 'z.id_klienta')
             ->select(
@@ -70,20 +70,20 @@ class FakturaController extends Controller
             abort(404);
         }
 
-        // jeśli chcesz dalej blokadę na status:
+
         if ($zam->status !== 'zrealizowane') {
             return redirect()
                 ->route('faktury.index')
                 ->with('error', 'Fakturę można wygenerować tylko dla zamówienia w statusie „zrealizowane”.');
         }
 
-        // 2. POBIERAMY POZYCJE TYLKO DLA TEGO KONKRETNEGO ID
+
         $pozycje = DB::table('zamowienia_pozycje as zp')
             ->where('zp.id_zamowienia', $zam->id_zamowienia)
             ->orderBy('zp.id_pozycji')
             ->get();
 
-        // 3. Numer faktury – jak chcesz
+
         $nrFaktury = 'F/'.date('Y').'/'.$zam->id_zamowienia;
 
         $pdf = \PDF::loadView('faktury.vat', [

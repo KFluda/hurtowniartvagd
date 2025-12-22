@@ -9,15 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('produkty', function (Blueprint $table) {
-            // Zdjęcie produktu – nazwa pliku (np. tv55.jpg)
-            $table->string('image')->nullable()->after('nazwa');
+            $table->boolean('aktywny')->default(true)->after('image');
         });
     }
 
     public function down(): void
     {
         Schema::table('produkty', function (Blueprint $table) {
-            $table->dropColumn('image');
+            $table->dropColumn('aktywny');
         });
     }
 };
