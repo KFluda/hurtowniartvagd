@@ -1,25 +1,23 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Zamowienie;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 
 class FrontendController extends Controller
 {
-
     public function home()
     {
         return view('frontend.home');
     }
 
-
-
     public function index(Request $request)
     {
-
         $q         = trim((string) $request->query('q', ''));
         $sort      = $request->query('sort', '');
         $kategoria = $request->query('kategoria', '');
@@ -27,7 +25,6 @@ class FrontendController extends Controller
         $cena_min  = $request->query('cena_min', '');
         $cena_max  = $request->query('cena_max', '');
         $seryjny   = $request->query('seryjny', '');   // 0 / 1 / ''
-
 
         $query = DB::table('produkty as p')
             ->leftJoin('kategorie as k', 'k.id_kategorii', '=', 'p.id_kategorii')
@@ -47,7 +44,6 @@ class FrontendController extends Controller
                 'pr.nazwa as producent_nazwa'
             );
 
-
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
                 $w->where('p.nazwa', 'like', "%{$q}%")
@@ -55,21 +51,17 @@ class FrontendController extends Controller
             });
         }
 
-
         if ($kategoria !== '') {
             $query->where('p.id_kategorii', (int) $kategoria);
         }
-
 
         if ($producent !== '') {
             $query->where('p.id_producenta', (int) $producent);
         }
 
-
         if ($seryjny === '0' || $seryjny === '1') {
             $query->where('p.czy_z_numerem_seryjnym', (int) $seryjny);
         }
-
 
         if ($cena_min !== '' && is_numeric(str_replace(',', '.', $cena_min))) {
             $cenaMin = (float) str_replace(',', '.', $cena_min);
@@ -86,7 +78,6 @@ class FrontendController extends Controller
                 [$cenaMax]
             );
         }
-
 
         switch ($sort) {
             case 'price_asc':
@@ -105,14 +96,11 @@ class FrontendController extends Controller
                 $query->orderBy('p.data_utworzenia', 'desc');
                 break;
             default:
-                // domyślnie po nazwie
                 $query->orderBy('p.nazwa', 'asc');
                 break;
         }
 
-
         $produkty = $query->paginate(12)->withQueryString();
-
 
         $kategorie = DB::table('kategorie')
             ->select('id_kategorii', 'nazwa')
@@ -123,7 +111,6 @@ class FrontendController extends Controller
             ->select('id_producenta', 'nazwa')
             ->orderBy('nazwa')
             ->get();
-
 
         return view('frontend.index', [
             'produkty'   => $produkty,
@@ -138,40 +125,54 @@ class FrontendController extends Controller
             'producenci' => $producenci,
         ]);
     }
+
     public function konto()
     {
         $user = auth()->user();
-        $email = $user->email;
+        if (!$user) abort(403);
 
+        $email = (string)($user->email ?? '');
 
-        $zamowienia = Zamowienie::where('uwagi', 'like', '%(' . $email . ')%')
-            ->orderByDesc('data_utworzenia')
-            ->get();
+        // Jeśli masz kolumnę id_uzytkownika w zamowienia → użyj jej.
+        // Jak nie masz → filtruj po mailu w "uwagi" (format: (mail@...))
+        if (Schema::hasColumn('zamowienia', 'id_uzytkownika')) {
+            $zamowienia = Zamowienie::where('id_uzytkownika', $user->id_uzytkownika)
+                ->orderByDesc('data_utworzenia')
+                ->get();
+        } else {
+            $zamowienia = Zamowienie::where('uwagi', 'like', '%(' . $email . ')%')
+                ->orderByDesc('data_utworzenia')
+                ->get();
+        }
 
         return view('frontend.konto', [
             'user'       => $user,
             'zamowienia' => $zamowienia,
         ]);
     }
+
     public function mojeZamowienie(int $id)
     {
-        $user  = auth()->user();
-        $email = $user->email;
+        $user = auth()->user();
+        if (!$user) abort(403);
 
+        $email = (string)($user->email ?? '');
 
-        $zamowienie = Zamowienie::where('id_zamowienia', $id)
-            ->where('uwagi', 'like', '%(' . $email . ')%')
-            ->firstOrFail();
+        if (Schema::hasColumn('zamowienia', 'id_uzytkownika')) {
+            $zamowienie = Zamowienie::where('id_zamowienia', $id)
+                ->where('id_uzytkownika', $user->id_uzytkownika)
+                ->firstOrFail();
+        } else {
+            $zamowienie = Zamowienie::where('id_zamowienia', $id)
+                ->where('uwagi', 'like', '%(' . $email . ')%')
+                ->firstOrFail();
+        }
 
         return view('frontend.konto-zamowienie', [
             'user'       => $user,
             'zamowienie' => $zamowienie,
         ]);
     }
-
-
-
-
 
     public function show($id)
     {
@@ -188,26 +189,37 @@ class FrontendController extends Controller
             ->where('p.aktywny', 1)
             ->first();
 
-        if (! $produkt) {
-            abort(404);
+        if (!$produkt) abort(404);
+
+        // MAPA: kategoria -> plik w /public/images
+        $categoryImages = [
+            'Audio'         => 'audio.jpg',
+            'AGD Kuchenne'  => 'ekspres.jpg',
+            'Pralki'        => 'pralka.jpg',
+            'Telewizory'    => 'telewizor.jpg',
+            'Komputery'     => 'laptop.jpg',
+        ];
+
+        // 1) jeśli produkt ma własny obrazek w kolumnie image (i leży w /public/images)
+        if (!empty($produkt->image)) {
+            $produkt->image_url = asset('images/' . $produkt->image);
         }
-
-
-        $produkt->image_url = $produkt->image
-            ? asset('storage/products/'.$produkt->image)
-            : asset('images/placeholder-produkt.png');
-
+        // 2) fallback po kategorii
+        elseif (!empty($produkt->kategoria) && isset($categoryImages[$produkt->kategoria])) {
+            $produkt->image_url = asset('images/' . $categoryImages[$produkt->kategoria]);
+        }
+        // 3) ostatecznie placeholder z /public/images
+        else {
+            $produkt->image_url = asset('images/placeholder-product.png'); // u Ciebie na screenie jest placeholder-product.png
+        }
 
         return view('frontend.produkt', compact('produkt'));
     }
 
-
-    /** Formularz zapytania o produkt */
+    /** Złożenie zamówienia z koszyka (prosty wariant) */
     public function submitOrder(Request $request)
     {
-        // przykładowo: pobierasz koszyk z sesji
         $cartItems = session('cart', []);
-
         if (empty($cartItems)) {
             return back()->with('error', 'Koszyk jest pusty.');
         }
@@ -215,44 +227,51 @@ class FrontendController extends Controller
         DB::beginTransaction();
 
         try {
+            $user = auth()->user();
+            $email = $user ? (string)$user->email : '';
 
-            $idZam = DB::table('zamowienia')->insertGetId([
+            $insert = [
                 'numer_zamowienia' => 'ZAM-' . date('Ymd') . '-' . Str::upper(Str::random(6)),
-                'id_klienta'       => auth()->id() ? /* twój id_klienta */ null : null,
+                'id_klienta'       => null,
                 'data_wystawienia' => now(),
                 'status'           => 'robocze',
                 'suma_netto'       => 0,
                 'suma_vat'         => 0,
                 'suma_brutto'      => 0,
-                'uwagi'            => null,
+                'uwagi'            => $email ? ('Zamówienie sklepu (' . $email . ')') : 'Zamówienie sklepu',
                 'data_utworzenia'  => now(),
-            ]);
+            ];
+
+            // jeżeli masz kolumnę id_uzytkownika w zamowienia — zapisz ją
+            if ($user && Schema::hasColumn('zamowienia', 'id_uzytkownika')) {
+                $insert['id_uzytkownika'] = $user->id_uzytkownika;
+            }
+
+            $idZam = DB::table('zamowienia')->insertGetId($insert);
 
             $sumNetto = 0; $sumVat = 0; $sumBrutto = 0;
 
-            // 2. pozycje + aktualizacja magazynu
             foreach ($cartItems as $item) {
-
                 $prod = DB::table('produkty')
                     ->where('id_produktu', $item['id_produktu'])
                     ->lockForUpdate()
                     ->first();
 
-                if (!$prod) {
-                    throw new \Exception('Produkt nie istnieje');
-                }
+                if (!$prod) throw new \Exception('Produkt nie istnieje');
 
-                $ilosc     = (float)$item['ilosc'];
-                $cenaNetto = (float)$item['cena_netto'];
-                $vat       = (float)$prod->stawka_vat;
+                $ilosc     = (float)($item['ilosc'] ?? 0);
+                $cenaBrutto = (float)($item['cena_brutto'] ?? 0);
+                $vat       = (float)($prod->stawka_vat ?? 0);
 
-                if ($prod->ilosc < $ilosc) {
-                    throw new \Exception("Brak ilości: {$prod->nazwa}");
-                }
+                if ($ilosc <= 0) throw new \Exception("Nieprawidłowa ilość: {$prod->nazwa}");
+                if ($prod->ilosc < $ilosc) throw new \Exception("Brak ilości: {$prod->nazwa}");
 
-                $wartNetto  = round($ilosc * $cenaNetto, 2);
-                $wartVat    = round($wartNetto * ($vat / 100), 2);
-                $wartBrutto = $wartNetto + $wartVat;
+                // Liczymy netto z brutto (bo w sesji trzymasz brutto)
+                $cenaNetto = round($cenaBrutto / (1 + $vat / 100), 2);
+
+                $wartBrutto = round($cenaBrutto * $ilosc, 2);
+                $wartNetto  = round($cenaNetto * $ilosc, 2);
+                $wartVat    = round($wartBrutto - $wartNetto, 2);
 
                 DB::table('zamowienia_pozycje')->insert([
                     'id_zamowienia' => $idZam,
@@ -270,14 +289,13 @@ class FrontendController extends Controller
                 DB::table('produkty')
                     ->where('id_produktu', $prod->id_produktu)
                     ->update([
-                        'ilosc' => DB::raw('GREATEST(ilosc - '.$ilosc.', 0)')
+                        'ilosc' => DB::raw('GREATEST(ilosc - ' . $ilosc . ', 0)')
                     ]);
 
                 $sumNetto  += $wartNetto;
                 $sumVat    += $wartVat;
                 $sumBrutto += $wartBrutto;
             }
-
 
             DB::table('zamowienia')
                 ->where('id_zamowienia', $idZam)
@@ -289,24 +307,22 @@ class FrontendController extends Controller
 
             DB::commit();
 
-
             session()->forget('cart');
 
+            // Tu kierujemy do podglądu zamówienia na koncie (żeby od razu je widział)
             return redirect()->route('konto.zamowienie', $idZam)
                 ->with('success', 'Zamówienie zostało złożone.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Błąd zamówienia: '.$e->getMessage());
+            return back()->with('error', 'Błąd zamówienia: ' . $e->getMessage());
         }
     }
 
-    /** Formularz kontaktowy (GET) */
     public function contactForm()
     {
         return view('pages.kontakt');
     }
 
-    /** Obsługa wysłania wiadomości z formularza kontaktowego (POST) */
     public function contactSend(Request $request)
     {
         $data = $request->validate([
@@ -332,13 +348,9 @@ class FrontendController extends Controller
         return back()->with('success', 'Dziękujemy! Twoja wiadomość została wysłana.');
     }
 
-    /** Widok koszyka */
     public function cart()
     {
-        // koszyk trzymamy w sesji pod kluczem 'cart'
-        // struktura: [id_produktu => ['id_produktu'=>..., 'nazwa'=>..., 'kod_sku'=>..., 'ilosc'=>..., 'cena_brutto'=>...], ...]
         $cart = session('cart', []);
-
         $pozycje = collect($cart);
 
         $sumaBrutto = $pozycje->sum(function ($item) {
@@ -353,7 +365,6 @@ class FrontendController extends Controller
         ]);
     }
 
-    /** Dodanie produktu do koszyka */
     public function addToCart(Request $request)
     {
         $request->validate([
@@ -372,18 +383,15 @@ class FrontendController extends Controller
             ->where('id_produktu', $request->produkt_id)
             ->first();
 
-        if (! $produkt) {
+        if (!$produkt) {
             return back()->with('error', 'Nie znaleziono produktu.');
         }
 
-        // pobierz aktualny koszyk
         $cart = session()->get('cart', []);
 
-        // jeżeli już jest w koszyku → zwiększ ilość
         if (isset($cart[$produkt->id_produktu])) {
             $cart[$produkt->id_produktu]['ilosc'] += 1;
         } else {
-            // dodaj nową pozycję
             $cart[$produkt->id_produktu] = [
                 'id_produktu' => $produkt->id_produktu,
                 'nazwa'       => $produkt->nazwa,
@@ -398,7 +406,6 @@ class FrontendController extends Controller
         return back()->with('success', 'Produkt dodany do koszyka.');
     }
 
-    /** Zmiana ilości w koszyku */
     public function updateCart(Request $request)
     {
         $data = $request->validate([
@@ -416,7 +423,6 @@ class FrontendController extends Controller
         return back()->with('success', 'Koszyk zaktualizowany.');
     }
 
-    /** Usunięcie pozycji z koszyka */
     public function removeFromCart(Request $request)
     {
         $data = $request->validate([
@@ -432,10 +438,11 @@ class FrontendController extends Controller
 
         return back()->with('success', 'Produkt usunięty z koszyka.');
     }
+
     public function blikForm()
     {
         $suma = collect(session('cart', []))
-            ->sum(fn($p) => $p['ilosc'] * $p['cena_brutto']);
+            ->sum(fn($p) => ($p['ilosc'] ?? 0) * ($p['cena_brutto'] ?? 0));
 
         return view('frontend.platnosc-blik', [
             'suma' => $suma
@@ -444,7 +451,6 @@ class FrontendController extends Controller
 
     public function blikPay(Request $request)
     {
-        // 1. Walidacja formularza
         $rules = [
             'imie_nazwisko'  => ['required', 'string', 'max:255'],
             'email'          => ['required', 'email', 'max:255'],
@@ -468,48 +474,35 @@ class FrontendController extends Controller
 
         $validated = $request->validate($rules);
 
-        // 2. Koszyk z sesji
         $cart = collect(session('cart', []));
-
         if ($cart->isEmpty()) {
             return redirect()
                 ->route('koszyk')
                 ->with('error', 'Koszyk jest pusty. Dodaj produkty przed złożeniem zamówienia.');
         }
 
-        $sumaBrutto = $cart->sum(function ($item) {
-            $ilosc = (int)($item['ilosc'] ?? 0);
-            $cena  = (float)($item['cena_brutto'] ?? 0);
-            return $ilosc * $cena;
-        });
-
-        // 3. Obliczenia dodatkowe
         $distance      = (int)$validated['distance'];
         $dniDostawy    = $this->obliczDniDostawy($distance);
         $numer         = $this->generujNumerZamowienia();
         $now           = now();
 
-        // 4. Id klienta
         $domyslnyKlientId = 1;
+        $idKlienta = (auth()->check() && isset(auth()->user()->id_klienta))
+            ? auth()->user()->id_klienta
+            : $domyslnyKlientId;
 
-        if (auth()->check() && isset(auth()->user()->id_klienta)) {
-            $idKlienta = auth()->user()->id_klienta;
-        } else {
-            $idKlienta = $domyslnyKlientId;
-        }
-
-        // 5. Opis w uwagach
+        // UWAGI + zawsze dopisz mail w nawiasie → konto znajdzie zamówienie nawet bez id_uzytkownika
         $uwagi = "Odbiorca: {$validated['imie_nazwisko']} ({$validated['email']}), "
             . "Adres: {$validated['ulica']}, {$validated['kod_pocztowy']} {$validated['miasto']}. "
             . "Dostawa: {$validated['dostawa']}, płatność: {$validated['platnosc']}, "
             . "odległość: {$distance} km, szacowany czas dostawy: {$dniDostawy} dni.";
 
-        // 6. Transakcja: nagłówek + pozycje + magazyn
         DB::beginTransaction();
 
         try {
-            // 6a. Tworzymy nagłówek zamówienia (na razie sumy = 0, wyliczymy poniżej)
-            $zamowienie = Zamowienie::create([
+            $user = auth()->user();
+
+            $insert = [
                 'numer_zamowienia' => $numer,
                 'id_klienta'       => $idKlienta,
                 'data_wystawienia' => $now->toDateString(),
@@ -519,46 +512,42 @@ class FrontendController extends Controller
                 'suma_brutto'      => 0,
                 'uwagi'            => $uwagi,
                 'data_utworzenia'  => $now,
-            ]);
+            ];
+
+            if ($user && Schema::hasColumn('zamowienia', 'id_uzytkownika')) {
+                $insert['id_uzytkownika'] = $user->id_uzytkownika;
+            }
+
+            // Zamowienie::create zakłada fillable – bezpieczniej tu: insertGetId + potem update modelu
+            $idZam = DB::table('zamowienia')->insertGetId($insert);
 
             $sumNetto  = 0;
             $sumVat    = 0;
             $sumBrutto = 0;
 
-            // 6b. Pozycje zamówienia + aktualizacja stanów magazynowych
             foreach ($cart as $item) {
                 $productId   = (int)$item['id_produktu'];
                 $ilosc       = (int)$item['ilosc'];
                 $cenaBrutto  = (float)$item['cena_brutto'];
 
-                // pobieramy produkt z bazy z blokadą
                 $prod = DB::table('produkty')
                     ->where('id_produktu', $productId)
                     ->lockForUpdate()
                     ->first();
 
-                if (!$prod) {
-                    throw new \Exception("Produkt ID {$productId} nie istnieje.");
-                }
-
-                if ($ilosc <= 0) {
-                    throw new \Exception("Nieprawidłowa ilość dla produktu {$prod->nazwa}.");
-                }
-
-                if ($prod->ilosc < $ilosc) {
-                    throw new \Exception("Brak ilości: {$prod->nazwa} (dostępne {$prod->ilosc}, zamówiono {$ilosc}).");
-                }
+                if (!$prod) throw new \Exception("Produkt ID {$productId} nie istnieje.");
+                if ($ilosc <= 0) throw new \Exception("Nieprawidłowa ilość dla produktu {$prod->nazwa}.");
+                if ($prod->ilosc < $ilosc) throw new \Exception("Brak ilości: {$prod->nazwa} (dostępne {$prod->ilosc}, zamówiono {$ilosc}).");
 
                 $vat = (float)$prod->stawka_vat;
 
-                // wyliczamy cenę netto z brutto i stawki VAT
                 $cenaNetto  = round($cenaBrutto / (1 + $vat / 100), 2);
                 $wartBrutto = round($cenaBrutto * $ilosc, 2);
                 $wartNetto  = round($cenaNetto  * $ilosc, 2);
                 $wartVat    = round($wartBrutto - $wartNetto, 2);
 
                 DB::table('zamowienia_pozycje')->insert([
-                    'id_zamowienia' => $zamowienie->id_zamowienia,
+                    'id_zamowienia' => $idZam,
                     'id_produktu'   => $prod->id_produktu,
                     'kod_sku'       => $prod->kod_sku,
                     'nazwa'         => $prod->nazwa,
@@ -570,11 +559,10 @@ class FrontendController extends Controller
                     'wart_brutto'   => $wartBrutto,
                 ]);
 
-                // aktualizacja stanu magazynowego
                 DB::table('produkty')
                     ->where('id_produktu', $prod->id_produktu)
                     ->update([
-                        'ilosc' => DB::raw('GREATEST(ilosc - '.$ilosc.', 0)')
+                        'ilosc' => DB::raw('GREATEST(ilosc - ' . $ilosc . ', 0)')
                     ]);
 
                 $sumNetto  += $wartNetto;
@@ -582,42 +570,33 @@ class FrontendController extends Controller
                 $sumBrutto += $wartBrutto;
             }
 
-            // 6c. Uaktualniamy sumy w nagłówku zamówienia
-            $zamowienie->update([
+            DB::table('zamowienia')->where('id_zamowienia', $idZam)->update([
                 'suma_netto'  => $sumNetto,
                 'suma_vat'    => $sumVat,
                 'suma_brutto' => $sumBrutto,
             ]);
 
             DB::commit();
-
-            // 7. Czyścimy koszyk
             session()->forget('cart');
 
-            // 8. Komunikat dla klienta
+            // od razu przenieś do konta → klient widzi swoje zamówienie
             return redirect()
-                ->route('sklep')
+                ->route('konto.zamowienie', $idZam)
                 ->with('success', 'Zamówienie zostało złożone. Numer zamówienia: ' . $numer);
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Błąd zamówienia: '.$e->getMessage());
+            return back()->with('error', 'Błąd zamówienia: ' . $e->getMessage());
         }
     }
-
-
 
     private function obliczDniDostawy(int $distance): int
     {
-        if($distance <=50){
-            return 1;
-        }
-        if($distance <=200) {
-            return 2;
-        }
+        if ($distance <= 50) return 1;
+        if ($distance <= 200) return 2;
         return 2 + (int)ceil(($distance - 200) / 200);
-
     }
+
     private function generujNumerZamowienia(): string
     {
         $date = now()->format('Ymd');
@@ -625,29 +604,16 @@ class FrontendController extends Controller
         do {
             $suffix = Str::upper(Str::random(5));
             $number = "ZAM-{$date}-{$suffix}";
-        } while (Zamowienie::where('numer_zamowienia', $number)->exists());
+        } while (DB::table('zamowienia')->where('numer_zamowienia', $number)->exists());
 
         return $number;
     }
-    private function przeliczNettoVat(float $brutto): array
-    {
-        $netto = round($brutto / 1,23, 2);
-        $vat = round($brutto - $netto, 2);
-        return [$netto, $vat];
 
-    }
     private function statusStartowy(string $platnosc): string
     {
         return match ($platnosc) {
-            'przelew'  => 'oczekuje na płatność',
-            default => 'zarejestrowane',
+            'przelew' => 'oczekuje na płatność',
+            default   => 'zarejestrowane',
         };
     }
-
-
-
-
-
-
-
 }

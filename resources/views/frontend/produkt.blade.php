@@ -27,10 +27,11 @@
                     'Lodówki'               => 'lodowka.jpg',
                     'Pralki'                => 'pralka.jpg',
                     'Zmywarki'              => 'zmywarka.jpg',
-                    'Kuchenki mikrofalowe'  => 'mikrofalowka.jpg',
+                    'Mikrofalówki'  => 'mikrofalowka.jpg',
                     'Odkurzacze'            => 'odkurzacz.jpg',
                     'Audio / Soundbary'     => 'audio.jpg',
                     'Smartfony'             => 'smartfon.jpg',
+                    'Komputery'             => 'komputery.jpg',
                     ];
 
                     // 1) jeżeli produkt ma swoje zdjęcie (kolumna image)
