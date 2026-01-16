@@ -116,14 +116,14 @@
             <div class="col-md-3 text-center">
                 <img src="https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=500&q=80"
                      class="rounded-circle mb-3 shadow" width="150" height="150" alt="CEO">
-                <h5 class="fw-bold">Marek Kowalski</h5>
+                <h5 class="fw-bold">Anna Nowak</h5>
                 <p class="text-muted">Dyrektor Generalny</p>
             </div>
 
             <div class="col-md-3 text-center">
                 <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=500&q=80"
                      class="rounded-circle mb-3 shadow" width="150" height="150" alt="Sales Manager">
-                <h5 class="fw-bold">Anna Nowak</h5>
+                <h5 class="fw-bold">Marek Kowalski</h5>
                 <p class="text-muted">Kierownik Działu Sprzedaży</p>
             </div>
 
