@@ -78,14 +78,6 @@
             </select>
         </div>
 
-        {{-- CZY WYMAGA NUMERU SERYJNEGO --}}
-        <div class="col-md-1">
-            <select name="seryjny" class="form-select">
-                <option value="">Seryjny?</option>
-                <option value="1" {{ $seryjny === '1' ? 'selected' : '' }}>Tak</option>
-                <option value="0" {{ $seryjny === '0' ? 'selected' : '' }}>Nie</option>
-            </select>
-        </div>
 
         {{-- PRZYCISK FILTRUJ --}}
         <div class="col-12 text-end mt-2">
@@ -113,11 +105,6 @@
                         Kod SKU: <strong>{{ $p->kod_sku }}</strong><br>
                         Kategoria: {{ $p->kategoria_nazwa ?? '—' }}<br>
                         Producent: {{ $p->producent_nazwa ?? '—' }}<br>
-                        @if($p->czy_z_numerem_seryjnym)
-                        Wymaga numeru seryjnego
-                        @else
-                        Bez numeru seryjnego
-                        @endif
                     </p>
 
                     <div class="mt-auto">
@@ -134,13 +121,16 @@
                             </a>
 
                             {{-- Dodaj do koszyka --}}
-                            <form method="POST" action="{{ route('koszyk.add') }}">
+                            <form method="POST" action="{{ route('koszyk.add') }}" class="d-inline">
                                 @csrf
                                 <input type="hidden" name="produkt_id" value="{{ $p->id_produktu }}">
-                                <button class="btn btn-success btn-sm">
+                                <input type="hidden" name="ilosc" value="1">
+
+                                <button type="submit" class="btn btn-success btn-sm">
                                     <i class="bi bi-bag-plus"></i> Dodaj
                                 </button>
                             </form>
+
                         </div>
                     </div>
 

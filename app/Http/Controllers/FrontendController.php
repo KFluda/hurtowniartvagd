@@ -369,7 +369,10 @@ class FrontendController extends Controller
     {
         $request->validate([
             'produkt_id' => 'required|integer|exists:produkty,id_produktu',
+            'ilosc'      => 'required|integer|min:1',
         ]);
+
+        $ilosc = (int) $request->input('ilosc', 1);
 
         $produkt = DB::table('produkty')
             ->select(
@@ -378,6 +381,7 @@ class FrontendController extends Controller
                 'kod_sku',
                 'cena_netto',
                 'stawka_vat',
+                'ilosc',
                 DB::raw('ROUND(COALESCE(cena_netto,0) * (1 + COALESCE(stawka_vat,0) / 100), 2) as cena_brutto')
             )
             ->where('id_produktu', $request->produkt_id)
@@ -387,16 +391,38 @@ class FrontendController extends Controller
             return back()->with('error', 'Nie znaleziono produktu.');
         }
 
+        $ilosc = max(1, $ilosc);
+        $stock = (int) ($produkt->ilosc ?? 0);
+
+        // Produkt niedostępny
+        if ($stock <= 0) {
+            return back()->with('error', 'Produkt jest chwilowo niedostępny.');
+        }
+
         $cart = session()->get('cart', []);
 
+        // Ile już jest w koszyku
+        $currentQty = isset($cart[$produkt->id_produktu])
+            ? (int)($cart[$produkt->id_produktu]['ilosc'] ?? 0)
+            : 0;
+
+        // Ile będzie po dodaniu
+        $newQty = $currentQty + $ilosc;
+
+        // ✅ BLOKADA: nie można przekroczyć stanu magazynowego
+        if ($newQty > $stock) {
+            return back()->with('error', 'Ilość niedostępna. Na magazynie jest tylko ' . $stock . ' szt.');
+        }
+
+        // Dodaj/aktualizuj koszyk
         if (isset($cart[$produkt->id_produktu])) {
-            $cart[$produkt->id_produktu]['ilosc'] += 1;
+            $cart[$produkt->id_produktu]['ilosc'] = $newQty;
         } else {
             $cart[$produkt->id_produktu] = [
                 'id_produktu' => $produkt->id_produktu,
                 'nazwa'       => $produkt->nazwa,
                 'kod_sku'     => $produkt->kod_sku,
-                'ilosc'       => 1,
+                'ilosc'       => $ilosc,
                 'cena_brutto' => (float)$produkt->cena_brutto,
             ];
         }
@@ -405,6 +431,7 @@ class FrontendController extends Controller
 
         return back()->with('success', 'Produkt dodany do koszyka.');
     }
+
 
     public function updateCart(Request $request)
     {

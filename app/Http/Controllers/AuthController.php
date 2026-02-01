@@ -37,6 +37,15 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        // ====== PRZEKIEROWANIE WG ROLI ======
+        $rola = strtoupper((string)($user->rola ?? ''));
+
+        // Klient ma trafić na stronę główną (albo sklep)
+        if ($rola === 'KLIENT') {
+            return redirect()->intended(route('home')); // albo route('sklep')
+        }
+
+        // Admin/Kierownik/Pracownik -> panel
         return redirect()->intended(route('panel'));
     }
 
@@ -56,7 +65,7 @@ class AuthController extends Controller
 
         $user = \App\Models\User::create([
             'imie_nazwisko' => $data['imie_nazwisko'],
-            'nazwa'         => $data['imie_nazwisko'],   // masz kolumnę "nazwa", więc ją też uzupełniamy
+            'nazwa'         => $data['imie_nazwisko'],
             'email'         => $data['email'],
             'haslo'         => \Illuminate\Support\Facades\Hash::make($data['password']),
             'rola'          => 'KLIENT',
@@ -70,7 +79,6 @@ class AuthController extends Controller
 
         return redirect()->route('home')->with('success','Konto zostało utworzone.');
     }
-
 
     // ====== WYLOGOWANIE ======
     public function logout(Request $request)

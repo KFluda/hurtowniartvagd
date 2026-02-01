@@ -27,7 +27,7 @@
                     'Lodówki'               => 'lodowka.jpg',
                     'Pralki'                => 'pralka.jpg',
                     'Zmywarki'              => 'zmywarka.jpg',
-                    'Mikrofalówki'  => 'mikrofalowka.jpg',
+                    'Mikrofalówki'          => 'mikrofalowka.jpg',
                     'Odkurzacze'            => 'odkurzacz.jpg',
                     'Audio / Soundbary'     => 'audio.jpg',
                     'Smartfony'             => 'smartfon.jpg',
@@ -53,7 +53,6 @@
                              alt="{{ $produkt->nazwa }}"
                              class="img-fluid w-100">
                     </div>
-
 
                 </div>
 
@@ -105,7 +104,7 @@
 
                     <p class="mb-2">
                         <strong>Dostępność:</strong>
-                        @if($produkt->ilosc > 0)
+                        @if((int)$produkt->ilosc > 0)
                         <span class="text-success">{{ (int)$produkt->ilosc }} szt. na magazynie</span>
                         @else
                         <span class="text-danger">Chwilowo niedostępny</span>
@@ -118,15 +117,43 @@
                     </p>
 
                     {{-- ================= FORMULARZ KOSZYKA ================= --}}
-                    <form method="post" action="{{ route('koszyk.add') }}" class="d-flex gap-2">
+
+                    {{-- komunikaty --}}
+                    @if(session('error'))
+                    <div class="alert alert-danger mb-3">
+                        {{ session('error') }}
+                    </div>
+                    @endif
+
+                    @if(session('success'))
+                    <div class="alert alert-success mb-3">
+                        {{ session('success') }}
+                    </div>
+                    @endif
+
+                    @if((int)$produkt->ilosc > 0)
+                    <form method="post" action="{{ route('koszyk.add') }}" class="d-flex gap-2 align-items-center">
                         @csrf
                         <input type="hidden" name="produkt_id" value="{{ $produkt->id_produktu }}">
-                        <input type="number" name="ilosc" value="1" min="1" class="form-control w-auto">
+
+                        <input
+                            type="number"
+                            name="ilosc"
+                            value="1"
+                            min="1"
+                            max="{{ (int)$produkt->ilosc }}"
+                            class="form-control w-auto"
+                        >
 
                         <button class="btn btn-success">
                             <i class="bi bi-cart-plus"></i> Dodaj do koszyka
                         </button>
                     </form>
+                    @else
+                    <div class="alert alert-warning mb-0">
+                        Produkt chwilowo niedostępny.
+                    </div>
+                    @endif
 
                     <hr>
 

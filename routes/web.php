@@ -31,8 +31,14 @@ Route::get('/konto/zamowienia/{id}', [FrontendController::class, 'mojeZamowienie
     ->whereNumber('id')
     ->name('konto.zamowienie');
 
-Route::get('/platnosc-blik', [FrontendController::class, 'blikForm'])->name('platnosc.blik');
-Route::post('/platnosc-blik', [FrontendController::class, 'blikPay'])->name('platnosc.blik.pay');
+Route::get('/platnosc-blik', [FrontendController::class, 'blikForm'])
+    ->middleware('auth')
+    ->name('platnosc.blik');
+
+Route::post('/platnosc-blik', [FrontendController::class, 'blikPay'])
+    ->middleware('auth')
+    ->name('platnosc.blik.pay');
+
 
 /* ===================== PUBLICZNE ===================== */
 
