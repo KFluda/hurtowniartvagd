@@ -17,7 +17,7 @@
                 <div class="col-md-5">
 
                     @php
-                    // BAZOWY adres do katalogu ze zdjęciami – TEN, KTÓRY U CIEBIE DZIAŁA
+                    // BAZOWY adres do katalogu ze zdjęciami
                     $imgBase = 'http://localhost/hurtownia/public/images/';
 
                     // mapowanie: nazwa kategorii z bazy -> nazwa pliku w katalogu /public/images
